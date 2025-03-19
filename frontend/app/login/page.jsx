@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, Info } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Datos simulados de estudiantes
 const ESTUDIANTES = {
@@ -36,12 +37,35 @@ const ESTUDIANTES = {
   },
 }
 
+// Datos de administradores
+const ADMINISTRADORES = {
+  "admin@institucion.edu": {
+    id: "admin1",
+    email: "admin@institucion.edu",
+    name: "Administrador del Sistema",
+    role: "admin",
+  },
+}
+
 export default function LoginPage() {
-  const [email, setEmail] = useState("estudiante@estudiante.edu")
+  const [activeTab, setActiveTab] = useState("estudiante")
+  const [email, setEmail] = useState(
+    activeTab === "estudiante" ? "estudiante@estudiante.edu" : "admin@institucion.edu"
+  )
   const [password, setPassword] = useState("123456")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+
+  // Actualizar email cuando cambia la pestaña
+  const handleTabChange = (value) => {
+    setActiveTab(value)
+    setEmail(
+      value === "estudiante" ? "estudiante@estudiante.edu" : "admin@institucion.edu"
+    )
+    setPassword("123456")
+    setError("")
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -50,24 +74,34 @@ export default function LoginPage() {
 
     // Simulación de autenticación
     setTimeout(() => {
-      if (email.endsWith("@estudiante.edu") && password.length >= 6) {
-        // Obtener datos del estudiante (simulado)
-        const estudianteData = ESTUDIANTES[email] || {
-          id: "default",
-          email,
-          name: "Estudiante Demo",
-          matricula: "EST-DEFAULT",
-          matriculado: true,
-          semestre: "1",
-          programa: "1",
-          asignaturas: [],
-        }
+      if (activeTab === "estudiante") {
+        if (email.endsWith("@estudiante.edu") && password.length >= 6) {
+          // Obtener datos del estudiante (simulado)
+          const estudianteData = ESTUDIANTES[email] || {
+            id: "default",
+            email,
+            name: "Estudiante Demo",
+            matricula: "EST-DEFAULT",
+            matriculado: true,
+            semestre: "1",
+            programa: "1",
+            asignaturas: [],
+          }
 
-        // Almacenar información del usuario en sessionStorage
-        sessionStorage.setItem("user", JSON.stringify(estudianteData))
-        router.push("/dashboard")
-      } else {
-        setError("Credenciales inválidas. Asegúrate de usar tu correo institucional.")
+          // Almacenar información del usuario en sessionStorage
+          sessionStorage.setItem("user", JSON.stringify(estudianteData))
+          router.push("/dashboard")
+        } else {
+          setError("Credenciales inválidas. Asegúrate de usar tu correo institucional.")
+        }
+      } else if (activeTab === "admin") {
+        if (email === "admin@institucion.edu" && password === "123456") {
+          // Almacenar información del administrador
+          sessionStorage.setItem("user", JSON.stringify(ADMINISTRADORES[email]))
+          router.push("/admin/dashboard")
+        } else {
+          setError("Credenciales de administrador incorrectas.")
+        }
       }
       setLoading(false)
     }, 1000)
@@ -79,11 +113,20 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Iniciar Sesión</CardTitle>
-          <CardDescription>
-            Ingresa tus credenciales institucionales para acceder al sistema de evaluación
-          </CardDescription>
+          <CardDescription>Ingresa tus credenciales para acceder al sistema de evaluación</CardDescription>
         </CardHeader>
         <CardContent>
+          <Tabs
+            defaultValue="estudiante"
+            value={activeTab}
+            onValueChange={handleTabChange}
+            className="mb-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="estudiante">Estudiante</TabsTrigger>
+              <TabsTrigger value="admin">Administrador</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertCircle className="h-4 w-4" />
@@ -94,20 +137,32 @@ export default function LoginPage() {
           <Alert className="mb-4 bg-blue-50 border-blue-200">
             <Info className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-700">
-              <strong>Usuarios de demostración:</strong>
-              <br />
-              <strong>Estudiante matriculado:</strong>
-              <br />
-              Email: estudiante@estudiante.edu
-              <br />
-              Contraseña: 123456
-              <br />
-              <br />
-              <strong>Estudiante no matriculado:</strong>
-              <br />
-              Email: nomastriculado@estudiante.edu
-              <br />
-              Contraseña: 123456
+              {activeTab === "estudiante" ? (
+                <>
+                  <strong>Usuarios de demostración:</strong>
+                  <br />
+                  <strong>Estudiante matriculado:</strong>
+                  <br />
+                  Email: estudiante@estudiante.edu
+                  <br />
+                  Contraseña: 123456
+                  <br />
+                  <br />
+                  <strong>Estudiante no matriculado:</strong>
+                  <br />
+                  Email: nomastriculado@estudiante.edu
+                  <br />
+                  Contraseña: 123456
+                </>
+              ) : (
+                <>
+                  <strong>Administrador:</strong>
+                  <br />
+                  Email: admin@institucion.edu
+                  <br />
+                  Contraseña: 123456
+                </>
+              )}
             </AlertDescription>
           </Alert>
 
@@ -117,7 +172,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="estudiante@estudiante.edu"
+                placeholder={activeTab === "estudiante" ? "estudiante@estudiante.edu" : "admin@institucion.edu"}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required />
