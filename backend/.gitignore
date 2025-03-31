@@ -32,4 +32,6 @@ Thumbs.db
 # Temp files
 tmp/
 temp/
-.qodo
+
+# SQL files
+sql/
