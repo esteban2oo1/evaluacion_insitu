@@ -1,112 +1,101 @@
-# Teacher Evaluation System - Backend
+# Sistema de Evaluación - Backend
 
-This is the backend API for the Teacher Evaluation System, a platform for evaluating teacher performance in educational institutions.
+## 📝 Descripción
 
-## Features
+API backend para el Sistema de Evaluación Docente, una plataforma diseñada para gestionar y realizar evaluaciones de desempeño docente en instituciones educativas. El sistema permite una evaluación integral y objetiva del trabajo de los docentes, facilitando el proceso de retroalimentación y mejora continua.
 
-- User authentication (login/logout)
-- Role-based access control (admin, evaluator, teacher)
-- Evaluation management
-- Performance reports
-- Notifications system
+## ✨ Características Principales
 
-## Project Structure
+- 🔐 Autenticación de usuarios (login/logout)
+- 👥 Control de acceso basado en roles
+- 📊 Gestión de evaluaciones
+- 📈 Reportes de desempeño
+
+## 🛠️ Tecnologías Utilizadas
+
+- Node.js (v14 o superior)
+- MySQL (v5.7 o superior)
+- Express.js
+- JWT para autenticación
+
+## 📁 Estructura del Proyecto
 
 ```
 backend/
-├── config/             # Configuration files
-│   └── database.js     # Database connection configuration
-├── controllers/        # Route controllers
-│   ├── auth.js         # Authentication controller
-│   ├── evaluations.js  # Evaluations controller
-│   └── reports.js      # Reports controller
-├── middleware/         # Custom middleware
-│   └── auth.js         # Authentication middleware
-├── routes/             # API routes
-│   ├── auth.js         # Authentication routes
-│   ├── evaluations.js  # Evaluations routes
-│   └── reports.js      # Reports routes
-├── utils/              # Utility functions
-│   └── logger.js       # Logging utility
-├── .env                # Environment variables
-├── package.json        # Project dependencies
-├── README.md           # Project documentation
-└── server.js           # Main server file
+├── config/             # Archivos de configuración
+│   └── database.js     # Configuración de conexión a base de datos
+├── controllers/        # Controladores de rutas
+│   ├── auth.js         # Controlador de autenticación
+│   ├── evaluations.js  # Controlador de evaluaciones
+│   └── reports.js      # Controlador de reportes
+├── middleware/         # Middleware personalizado
+│   └── auth.js         # Middleware de autenticación
+├── routes/             # Rutas de la API
+│   ├── auth.js         # Rutas de autenticación
+│   ├── evaluations.js  # Rutas de evaluaciones
+│   └── reports.js      # Rutas de reportes
+├── sql/                # Scripts SQL y migraciones
+│   ├── schema.sql      # Esquema de la base de datos
+│   └── migrations/     # Scripts de migración
+├── utils/              # Funciones de utilidad
+│   └── logger.js       # Utilidad de registro
+├── .env                # Variables de entorno
+├── package.json        # Dependencias del proyecto
+├── README.md           # Documentación del proyecto
+└── server.js           # Archivo principal del servidor
 ```
 
-## Prerequisites
+## 🚀 Guía de Instalación
 
-- Node.js (v14 or higher)
-- MySQL (v5.7 or higher)
+### Requisitos Previos
 
-## Setup Instructions
+- Node.js (v14 o superior)
+- MySQL (v5.7 o superior)
+- npm o yarn
 
-1. Clone the repository:
+### Pasos de Instalación
+
+1. **Clonar el repositorio**
 ```bash
-git clone <repository-url>
+git clone https://github.com/esteban2oo1/evaluacion_insitu.git
 cd evaluation-system/backend
 ```
 
-2. Install dependencies:
+2. **Instalar dependencias**
 ```bash
 npm install
 ```
 
-3. Create a MySQL database:
+3. **Configurar la base de datos**
 ```sql
 CREATE DATABASE evaluacion_docente;
 ```
 
-4. Configure environment variables:
-   - Copy the `.env.example` file to `.env`
-   - Update the values in the `.env` file with your database credentials and other settings
+4. **Configurar variables de entorno**
+   - Copiar el archivo `.env.example` a `.env`
+   - Actualizar las credenciales y configuraciones en el archivo `.env`:
+   ```
+   PORT=tu_port
+   DB_HOST=tu_host
+   DB_USER=tu_user
+   DB_PASSWORD=tu_contraseña
+   DB_NAME=tu_db
+   JWT_SECRET=tu_clave_secreta
+   ```
 
-```
-PORT=5000
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your_password
-DB_NAME=evaluacion_docente
-JWT_SECRET=your_secret_key
-```
+5. **Configurar la base de datos**
+   - Los scripts SQL se encuentran en el directorio `sql/`
+   - Importar el esquema:
+   ```bash
+   mysql -u tu_usuario -p evaluacion_docente < sql/schema.sql
+   ```
+   > **Nota**: El directorio `sql/` no está incluido en el control de versiones por contener datos sensibles o configuraciones locales.
 
-5. Run database migrations (if available) or import the SQL schema.
-
-6. Start the server:
+6. **Iniciar el servidor**
 ```bash
-# Development mode
+# Modo desarrollo
 npm run dev
 
-# Production mode
+# Modo producción
 npm start
 ```
-
-## API Endpoints
-
-### Authentication
-- `POST /api/login` - Authenticate user and get token
-- `POST /api/logout` - Logout and invalidate token
-- `GET /api/user` - Get current user info
-
-### Dashboard
-- `GET /api/dashboard/evaluaciones` - Get evaluations list for dashboard
-
-### Evaluations
-- `POST /api/evaluaciones/iniciar` - Initialize a new evaluation
-- `GET /api/evaluaciones/:id` - Get evaluation details
-- `POST /api/evaluaciones/:id` - Save/update evaluation
-- `POST /api/evaluaciones/:id/enviar` - Submit evaluation
-
-### Reference Data
-- `GET /api/aspectos-evaluacion` - Get aspects and rating scale
-
-### Reports
-- `GET /api/reportes/desempeno-docente/:id` - Get teacher performance report
-
-### Notifications
-- `GET /api/notificaciones` - Get user notifications
-- `PUT /api/notificaciones/:id/leer` - Mark notification as read
-
-## License
-
-This project is licensed under the MIT License.
