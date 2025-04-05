@@ -19,25 +19,12 @@
  *         DESCRIPCION:
  *           type: string
  *           example: Escala de valoración alta
- *         PUNTAJE:
- *           type: number
- *           format: decimal
- *           example: 4.50
- *         ORDEN:
- *           type: number
- *           format: decimal
- *           description: Orden o peso del aspecto en la evaluación
- *           example: 1.00
- *         ACTIVO:
- *           type: number
- *           description: Estado del aspecto (1 para activo, 0 para inactivo)
  *     EscalaValoracionInput:
  *       type: object
  *       required:
  *         - VALOR
  *         - ETIQUETA
- *         - PUNTAJE
- *         - ORDEN
+ *         - DESCRIPCION
  *       properties:
  *         VALOR:
  *           type: string
@@ -50,19 +37,6 @@
  *         DESCRIPCION:
  *           type: string
  *           example: Escala de valoración alta
- *         PUNTAJE:
- *           type: number
- *           format: decimal
- *           example: 5.00
- *         ORDEN:
- *           type: number
- *           format: decimal
- *           description: Orden o peso del aspecto en la evaluación
- *           example: 1.00
- *         ACTIVO:
- *           type: number
- *           description: Estado del aspecto (1 para activo, 0 para inactivo)
- *           example: 1
  */
 
 /**

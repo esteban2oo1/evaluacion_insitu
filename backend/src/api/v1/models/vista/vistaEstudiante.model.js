@@ -12,6 +12,51 @@ const VistaEstudiante = {
     }
   },
 
+  getEstudianteById: async (documentoEstudiante) => {
+    try {
+      const pool = getPool();
+      const [rows] = await pool.query(`
+        SELECT 
+          SEMESTRE_MATRICULA,
+          SEDE,
+          CODIGO_ESTUDIANTE,
+          COD_PROGRAMA,
+          DOBLE_PROGRAMA,
+          SEMESTRE_INGRESO,
+          PERIODO_INGRESO,
+          SEMESTRE_CREDITOS,
+          PRIMER_APELLIDO,
+          SEGUNDO_APELLIDO,
+          PRIMER_NOMBRE,
+          SEGUNDO_NOMBRE,
+          TIPO_DOC,
+          DOCUMENTO_ESTUDIANTE,
+          FECHA_NACIMIENTO,
+          SEXO,
+          TELEFONO,
+          CELULAR,
+          EMAIL_PNAL,
+          EMAIL_IES,
+          DIRECCION,
+          ESTADO_CIVIL,
+          JORNADA,
+          PERSONA_CONTACTO,
+          NUMERO_CONTACTO,
+          ESTADO_MATRICULA,
+          ESTADO_ACADEMICO,
+          PROMEDIO_ACUMULADO,
+          CREDITOS_CURSADOS,
+          CREDITOS_PROGRAMA
+        FROM VISTA_ESTUDIANTE
+        WHERE DOCUMENTO_ESTUDIANTE = ?;
+      `, [documentoEstudiante]);
+  
+      return rows[0] || null;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   getEstudianteByDocumento: async (documentoEstudiante) => {
     try {
       const pool = getPool();
@@ -48,8 +93,6 @@ const VistaEstudiante = {
       throw error; // Lanzar el error para manejarlo en el controlador
     }
   }
-
-
 };
 
 module.exports = VistaEstudiante;

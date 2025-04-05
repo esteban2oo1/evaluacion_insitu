@@ -12,14 +12,14 @@ const VistaAcademica = {
     }
   },
 
-  getDocenteByDocumento: async (documentoDocente) => {
+  getVistaAcademicaById: async (documento, tipo) => {
     try {
       const pool = getPool();
       const [rows] = await pool.query(`
         SELECT NOMBRE_DOCENTE, NOMBRE_MATERIA 
         FROM VISTA_ACADEMICA 
-        WHERE DOCUMENTO_DOCENTE = ?;
-      `, [documentoDocente]);
+        WHERE ${tipo === 'docente' ? 'DOCUMENTO_DOCENTE' : 'DOCUMENTO_ESTUDIANTE'} = ?;
+      `, [documento]);
       return rows;
     } catch (error) {
       throw error;

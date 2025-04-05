@@ -4,7 +4,7 @@ const AspectosEvaluacion = {
   getAllAspectos: async () => {
     try {
       const pool = getPool();
-      const [rows] = await pool.query('SELECT ID, ETIQUETA, DESCRIPCION, ORDEN, ACTIVO FROM ASPECTOS_EVALUACION WHERE ACTIVO = TRUE ORDER BY ORDEN');
+      const [rows] = await pool.query('SELECT ID, ETIQUETA, DESCRIPCION FROM ASPECTOS_EVALUACION');
       return rows;
     } catch (error) {
       throw error;
@@ -14,7 +14,7 @@ const AspectosEvaluacion = {
   getAspectoById: async (id) => {
     try {
       const pool = getPool();
-      const [rows] = await pool.query('SELECT ID, ETIQUETA, DESCRIPCION, ORDEN, ACTIVO FROM ASPECTOS_EVALUACION WHERE ID = ?', [id]);
+      const [rows] = await pool.query('SELECT ID, ETIQUETA, DESCRIPCION FROM ASPECTOS_EVALUACION WHERE ID = ?', [id]);
       return rows[0];
     } catch (error) {
       throw error;
@@ -24,10 +24,10 @@ const AspectosEvaluacion = {
   createAspecto: async (aspectoData) => {
     try {
       const pool = getPool();
-      const { ETIQUETA, DESCRIPCION, ORDEN, ACTIVO } = aspectoData;
+      const { ETIQUETA, DESCRIPCION } = aspectoData;
       const [result] = await pool.query(
-        'INSERT INTO ASPECTOS_EVALUACION (ETIQUETA, DESCRIPCION, ORDEN, ACTIVO) VALUES (?, ?, ?, ?)',
-        [ETIQUETA, DESCRIPCION, ORDEN, ACTIVO ?? true]
+        'INSERT INTO ASPECTOS_EVALUACION (ETIQUETA, DESCRIPCION) VALUES (?, ?)',
+        [ETIQUETA, DESCRIPCION ?? true]
       );
       return { id: result.insertId, ...aspectoData };
     } catch (error) {
@@ -38,10 +38,10 @@ const AspectosEvaluacion = {
   updateAspecto: async (id, aspectoData) => {
     try {
       const pool = getPool();
-      const { ETIQUETA, DESCRIPCION, ORDEN, ACTIVO } = aspectoData;
+      const { ETIQUETA, DESCRIPCION } = aspectoData;
       await pool.query(
-        'UPDATE ASPECTOS_EVALUACION SET ETIQUETA = ?, DESCRIPCION = ?, ORDEN = ?, ACTIVO = ? WHERE ID = ?',
-        [ETIQUETA, DESCRIPCION, ORDEN, ACTIVO, id]
+        'UPDATE ASPECTOS_EVALUACION SET ETIQUETA = ?, DESCRIPCION = ? WHERE ID = ?',
+        [ETIQUETA, DESCRIPCION, id]
       );
       return { id, ...aspectoData };
     } catch (error) {

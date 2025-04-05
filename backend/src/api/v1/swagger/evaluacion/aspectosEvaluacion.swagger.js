@@ -17,15 +17,6 @@
  *           type: string
  *           description: Descripción detallada del aspecto de evaluación
  *           example: "Evaluación de la participación activa de los estudiantes"
- *         ORDEN:
- *           type: number
- *           format: decimal
- *           description: Orden o peso del aspecto en la evaluación
- *           example: 1.00
- *         ACTIVO:
- *           type: number
- *           description: Estado del aspecto (1 para activo, 0 para inactivo)
- *           example: 1
  *     AspectoEvaluacionInput:
  *       type: object
  *       required:
@@ -41,15 +32,6 @@
  *           type: string
  *           description: Descripción detallada del aspecto de evaluación
  *           example: "Evaluación de la participación activa de los estudiantes"
- *         ORDEN:
- *           type: number
- *           format: decimal
- *           description: Orden o peso del aspecto en la evaluación
- *           example: 1.00
- *         ACTIVO:
- *           type: number
- *           description: Estado del aspecto (1 para activo, 0 para inactivo)
- *           example: 1
  */
 
 /**

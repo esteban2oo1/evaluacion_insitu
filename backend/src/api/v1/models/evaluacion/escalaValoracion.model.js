@@ -5,7 +5,7 @@ const EscalaValoracion = {
   getAllEscalas: async () => {
     try {
       const pool = getPool();
-      const [rows] = await pool.query('SELECT ID, VALOR, ETIQUETA, DESCRIPCION, PUNTAJE, ORDEN, ACTIVO FROM ESCALA_VALORACION ORDER BY ORDEN');
+      const [rows] = await pool.query('SELECT ID, VALOR, ETIQUETA, DESCRIPCION FROM ESCALA_VALORACION');
       return rows;
     } catch (error) {
       throw error;
@@ -15,7 +15,7 @@ const EscalaValoracion = {
   getEscalaById: async (id) => {
     try {
       const pool = getPool();
-      const [rows] = await pool.query('SELECT ID, VALOR, ETIQUETA, DESCRIPCION, PUNTAJE, ORDEN, ACTIVO FROM ESCALA_VALORACION WHERE ID = ?', [id]);
+      const [rows] = await pool.query('SELECT ID, VALOR, ETIQUETA, DESCRIPCION FROM ESCALA_VALORACION WHERE ID = ?', [id]);
       return rows[0];
     } catch (error) {
       throw error;
@@ -27,8 +27,8 @@ const EscalaValoracion = {
       const pool = getPool();
       const { VALOR, ETIQUETA, DESCRIPCION, PUNTAJE, ORDEN, ACTIVO } = escalaData;
       const [result] = await pool.query(
-        'INSERT INTO ESCALA_VALORACION (VALOR, ETIQUETA, DESCRIPCION, PUNTAJE, ORDEN, ACTIVO) VALUES (?, ?, ?, ?, ?, ?)',
-        [VALOR, ETIQUETA, DESCRIPCION, PUNTAJE, ORDEN, ACTIVO ?? true]
+        'INSERT INTO ESCALA_VALORACION (VALOR, ETIQUETA, DESCRIPCION) VALUES (?, ?,?)',
+        [VALOR, ETIQUETA, DESCRIPCION ?? true]
       );
       return { id: result.insertId, ...escalaData };
     } catch (error) {
@@ -41,8 +41,8 @@ const EscalaValoracion = {
       const pool = getPool();
       const { VALOR, ETIQUETA, DESCRIPCION, PUNTAJE, ORDEN, ACTIVO } = escalaData;
       await pool.query(
-        'UPDATE ESCALA_VALORACION SET VALOR = ?, ETIQUETA = ?, DESCRIPCION = ?, PUNTAJE = ?, ORDEN = ?, ACTIVO = ? WHERE ID = ?',
-        [VALOR, ETIQUETA, DESCRIPCION, PUNTAJE, ORDEN, ACTIVO, id]
+        'UPDATE ESCALA_VALORACION SET VALOR = ?, ETIQUETA = ?, DESCRIPCION = ? WHERE ID = ?',
+        [VALOR, ETIQUETA, DESCRIPCION, id]
       );
       return { id, ...escalaData };
     } catch (error) {
