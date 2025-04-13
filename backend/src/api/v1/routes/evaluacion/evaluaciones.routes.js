@@ -9,7 +9,8 @@ const {
   createEvaluacion,
   updateEvaluacion,
   deleteEvaluacion,
-  createEvaluacionU
+  createEvaluacionU,
+  getEvaluacionesPendientes
 } = require('../../controllers/evaluacion/evaluaciones.controller');
 
 const { verifyToken } = require('../../middlewares/userAuth.middleware');
@@ -18,9 +19,10 @@ const router = express.Router();
 
 // Rutas para obtener evaluaciones
 router.get('/', getEvaluaciones);
+router.get('/pendientes', verifyToken, getEvaluacionesPendientes);
+router.get('/:id', getEvaluacionById);
 router.get('/estudiante/:documentoEstudiante', getEvaluacionesByEstudiante);
 router.get('/docente/:documentoDocente', getEvaluacionesByDocente);
-router.get('/:id', getEvaluacionById);
 
 // Rutas protegidas
 router.post('/insitu/crear', verifyToken, createEvaluacionU);

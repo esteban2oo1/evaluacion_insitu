@@ -2,60 +2,48 @@
  * @swagger
  * components:
  *   schemas:
- *     ConfiguracionEvaluacion:
+ *     Rol:
  *       type: object
  *       properties:
  *         ID:
  *           type: integer
  *           example: 1
- *         TIPO_EVALUACION_ID:
- *           type: integer
- *           example: 1
- *         FECHA_INICIO:
+ *         NOMBRE_ROL:
  *           type: string
- *           format: date
- *           example: "2024-01-01"
- *         FECHA_FIN:
+ *           example: "ADMIN"
+ *         CREATED_AT:
  *           type: string
- *           format: date
- *           example: "2024-12-31"
- *         ACTIVO:
- *           type: boolean
- *           description: Estado del aspecto (activo/inactivo)
- *           example: true
- *     ConfiguracionEvaluacionInput:
+ *           format: date-time
+ *           example: "2024-03-20T12:34:56.000Z"
+ *         UPDATED_AT:
+ *           type: string
+ *           format: date-time
+ *           example: "2024-03-20T12:34:56.000Z"
+ *     RolInput:
  *       type: object
  *       required:
- *         - TIPO_EVALUACION_ID
- *         - FECHA_INICIO
- *         - FECHA_FIN
+ *         - NOMBRE_ROL
  *       properties:
- *         TIPO_EVALUACION_ID:
- *           type: int
- *           example: 1
- *         FECHA_INICIO:
+ *         NOMBRE_ROL:
  *           type: string
- *           format: date
- *           example: "2025-04-20"
- *         FECHA_FIN:
- *           type: string
- *           format: date
- *           example: "2025-05-20"
- *         ACTIVO:
- *           type: number
- *           description: Estado del aspecto (1 para activo, 0 para inactivo)
- *           example: 1
+ *           example: "ADMIN"
  */
 
 /**
  * @swagger
- * /configuracion-evaluacion:
+ * tags:
+ *   name: Roles
+ */
+
+/**
+ * @swagger
+ * /roles:
  *   get:
- *     summary: Obtener todas las configuraciones de evaluación
- *     tags: [Configuración de Evaluación]
+ *     summary: Obtener todos los roles
+ *     tags: [Roles]
  *     responses:
  *       200:
- *         description: Lista de configuraciones de evaluación
+ *         description: Lista de roles
  *         content:
  *           application/json:
  *             schema:
@@ -67,21 +55,21 @@
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/ConfiguracionEvaluacion'
+ *                     $ref: '#/components/schemas/Rol'
  *       500:
  *         description: Error del servidor
  *   post:
- *     summary: Crear una nueva configuración de evaluación
- *     tags: [Configuración de Evaluación]
+ *     summary: Crear un nuevo rol
+ *     tags: [Roles]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ConfiguracionEvaluacionInput'
+ *             $ref: '#/components/schemas/RolInput'
  *     responses:
  *       201:
- *         description: Configuración creada exitosamente
+ *         description: Rol creado exitosamente
  *         content:
  *           application/json:
  *             schema:
@@ -91,27 +79,27 @@
  *                   type: boolean
  *                   example: true
  *                 data:
- *                   $ref: '#/components/schemas/ConfiguracionEvaluacion'
+ *                   $ref: '#/components/schemas/Rol'
  *       500:
  *         description: Error del servidor
  */
 
 /**
  * @swagger
- * /configuracion-evaluacion/{id}:
+ * /roles/{id}:
  *   get:
- *     summary: Obtener una configuración de evaluación por ID
- *     tags: [Configuración de Evaluación]
+ *     summary: Obtener un rol por ID
+ *     tags: [Roles]
  *     parameters:
  *       - in: path
  *         name: id
  *         schema:
  *           type: integer
  *         required: true
- *         description: ID de la configuración
+ *         description: ID del rol
  *     responses:
  *       200:
- *         description: Datos de la configuración
+ *         description: Datos del rol
  *         content:
  *           application/json:
  *             schema:
@@ -121,30 +109,30 @@
  *                   type: boolean
  *                   example: true
  *                 data:
- *                   $ref: '#/components/schemas/ConfiguracionEvaluacion'
+ *                   $ref: '#/components/schemas/Rol'
  *       404:
- *         description: Configuración no encontrada
+ *         description: Rol no encontrado
  *       500:
  *         description: Error del servidor
  *   put:
- *     summary: Actualizar una configuración de evaluación
- *     tags: [Configuración de Evaluación]
+ *     summary: Actualizar un rol
+ *     tags: [Roles]
  *     parameters:
  *       - in: path
  *         name: id
  *         schema:
  *           type: integer
  *         required: true
- *         description: ID de la configuración
+ *         description: ID del rol
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ConfiguracionEvaluacionInput'
+ *             $ref: '#/components/schemas/RolInput'
  *     responses:
  *       200:
- *         description: Configuración actualizada exitosamente
+ *         description: Rol actualizado exitosamente
  *         content:
  *           application/json:
  *             schema:
@@ -154,24 +142,24 @@
  *                   type: boolean
  *                   example: true
  *                 data:
- *                   $ref: '#/components/schemas/ConfiguracionEvaluacion'
+ *                   $ref: '#/components/schemas/Rol'
  *       404:
- *         description: Configuración no encontrada
+ *         description: Rol no encontrado
  *       500:
  *         description: Error del servidor
  *   delete:
- *     summary: Eliminar una configuración de evaluación
- *     tags: [Configuración de Evaluación]
+ *     summary: Eliminar un rol
+ *     tags: [Roles]
  *     parameters:
  *       - in: path
  *         name: id
  *         schema:
  *           type: integer
  *         required: true
- *         description: ID de la configuración
+ *         description: ID del rol
  *     responses:
  *       200:
- *         description: Configuración eliminada exitosamente
+ *         description: Rol eliminado exitosamente
  *         content:
  *           application/json:
  *             schema:
@@ -182,9 +170,9 @@
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: Configuración de evaluación eliminada correctamente
+ *                   example: Rol eliminado correctamente
  *       404:
- *         description: Configuración no encontrada
+ *         description: Rol no encontrado
  *       500:
  *         description: Error del servidor
  */

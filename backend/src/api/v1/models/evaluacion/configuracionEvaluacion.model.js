@@ -7,13 +7,14 @@ const ConfiguracionEvaluacion = {
       const pool = getPool();
       const [rows] = await pool.query(`SELECT 
         CE.ID, 
-        CE.TIPO_ENCUESTA_ID, 
-        TIPO_ENCUESTA.NOMBRE AS NOMBRE_TIPO_ENCUESTA, 
+        CE.TIPO_EVALUACION_ID, 
+        TE.NOMBRE as TIPO_EVALUACION_NOMBRE,
+        TE.DESCRIPCION as TIPO_EVALUACION_DESCRIPCION,
         CE.FECHA_INICIO, 
         CE.FECHA_FIN, 
         CE.ACTIVO 
-      FROM CE CONFIGURACION_EVALUACION
-      JOIN TIPOS_ENCUESTA TE ON CONFIGURACION_EVALUACION.TIPO_ENCUESTA_ID = TIPO_ENCUESTA.ID
+      FROM CONFIGURACION_EVALUACION CE
+      JOIN TIPOS_EVALUACIONES TE ON CE.TIPO_EVALUACION_ID = TE.ID
     `);
       return rows;
     } catch (error) {
@@ -24,7 +25,17 @@ const ConfiguracionEvaluacion = {
   getConfiguracionById: async (id) => {
     try {
       const pool = getPool();
-      const [rows] = await pool.query('SELECT ID, TIPO_ENCUESTA_ID, FECHA_INICIO, FECHA_FIN, ACTIVO FROM CE WHERE ID = ?', [id]);
+      const [rows] = await pool.query(`SELECT 
+        CE.ID, 
+        CE.TIPO_EVALUACION_ID, 
+        TE.NOMBRE as TIPO_EVALUACION_NOMBRE,
+        TE.DESCRIPCION as TIPO_EVALUACION_DESCRIPCION,
+        CE.FECHA_INICIO, 
+        CE.FECHA_FIN, 
+        CE.ACTIVO 
+      FROM CONFIGURACION_EVALUACION CE
+      JOIN TIPOS_EVALUACIONES TE ON CE.TIPO_EVALUACION_ID = TE.ID
+      WHERE CE.ID = ?`, [id]);
       return rows[0];
     } catch (error) {
       throw error;
@@ -34,10 +45,10 @@ const ConfiguracionEvaluacion = {
   createConfiguracion: async (configuracionData) => {
     try {
       const pool = getPool();
-      const { TIPO_ENCUESTA_ID, FECHA_INICIO, FECHA_FIN, ACTIVO } = configuracionData;
+      const { TIPO_EVALUACION_ID, FECHA_INICIO, FECHA_FIN, ACTIVO } = configuracionData;
       const [result] = await pool.query(
-        'INSERT INTO CE (TIPO_ENCUESTA_ID, FECHA_INICIO, FECHA_FIN, ACTIVO) VALUES (?, ?, ?, ?)',
-        [TIPO_ENCUESTA_ID, FECHA_INICIO, FECHA_FIN, ACTIVO]
+        'INSERT INTO CONFIGURACION_EVALUACION (TIPO_EVALUACION_ID, FECHA_INICIO, FECHA_FIN, ACTIVO) VALUES (?, ?, ?, ?)',
+        [TIPO_EVALUACION_ID, FECHA_INICIO, FECHA_FIN, ACTIVO]
       );
       return { id: result.insertId, ...configuracionData };
     } catch (error) {
@@ -48,10 +59,10 @@ const ConfiguracionEvaluacion = {
   updateConfiguracion: async (id, configuracionData) => {
     try {
       const pool = getPool();
-      const { FECHA_INICIO, FECHA_FIN, ACTIVO } = configuracionData;
+      const { TIPO_EVALUACION_ID, FECHA_INICIO, FECHA_FIN, ACTIVO } = configuracionData;
       await pool.query(
-        'UPDATE CE SET TIPO_ENCUESTA_ID = ?, FECHA_INICIO = ?, FECHA_FIN = ?, ACTIVO = ? WHERE ID = ?',
-        [FECHA_INICIO, FECHA_FIN, ACTIVO, id]
+        'UPDATE CONFIGURACION_EVALUACION SET TIPO_EVALUACION_ID = ?, FECHA_INICIO = ?, FECHA_FIN = ?, ACTIVO = ? WHERE ID = ?',
+        [TIPO_EVALUACION_ID, FECHA_INICIO, FECHA_FIN, ACTIVO, id]
       );
       return { id, ...configuracionData };
     } catch (error) {
@@ -62,7 +73,7 @@ const ConfiguracionEvaluacion = {
   deleteConfiguracion: async (id) => {
     try {
       const pool = getPool();
-      await pool.query('DELETE FROM CE WHERE ID = ?', [id]);
+      await pool.query('DELETE FROM CONFIGURACION_EVALUACION WHERE ID = ?', [id]);
       return true;
     } catch (error) {
       throw error;

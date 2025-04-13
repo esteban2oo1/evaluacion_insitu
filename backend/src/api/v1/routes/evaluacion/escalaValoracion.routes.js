@@ -14,9 +14,9 @@ const validate = require('../../middlewares/validate');
 const router = express.Router();
 
 router.get('/', getEscalas);
-router.post('/', verifyToken, checkRole([1]), validate(escalaValoracionSchema), createEscala);
-router.get('/:id', verifyToken, checkRole([1]), getEscalaById);
-router.put('/:id', verifyToken, checkRole([1]), validate(escalaValoracionSchema), updateEscala);
-router.delete('/:id', verifyToken, checkRole([1]), deleteEscala);
+router.post('/', verifyToken, checkRole(['Admin']), validate(escalaValoracionSchema), createEscala);
+router.get('/:id', verifyToken, checkRole(['Admin']), getEscalaById);
+router.put('/:id', verifyToken, checkRole(['Admin']), validate(escalaValoracionSchema), updateEscala);
+router.delete('/:id', verifyToken, checkRole(['Admin']), deleteEscala);
 
 module.exports = router;

@@ -14,9 +14,9 @@ const validate = require('../../middlewares/validate');
 const router = express.Router();
 
 router.get('/', getConfiguraciones);
-router.post('/', verifyToken, checkRole([1]), validate(configuracionEvaluacionSchema), createConfiguracion);
-router.get('/:id', verifyToken, checkRole([1]), getConfiguracionById);
-router.put('/:id', verifyToken, checkRole([1]), validate(configuracionEvaluacionSchema), updateConfiguracion);
-router.delete('/:id', verifyToken, checkRole([1]), deleteConfiguracion);
+router.post('/', verifyToken, checkRole(['Admin']), validate(configuracionEvaluacionSchema), createConfiguracion);
+router.get('/:id', verifyToken, checkRole(['Admin']), getConfiguracionById);
+router.put('/:id', verifyToken, checkRole(['Admin']), validate(configuracionEvaluacionSchema), updateConfiguracion);
+router.delete('/:id', verifyToken, checkRole(['Admin']), deleteConfiguracion);
 
 module.exports = router;

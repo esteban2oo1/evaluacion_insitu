@@ -56,6 +56,97 @@
  *         COMENTARIO:
  *           type: string
  *           example: "El docente explica muy bien los temas."
+ *     EvaluacionPendienteResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         data:
+ *           type: object
+ *           properties:
+ *             tiposEvaluacion:
+ *               type: object
+ *               additionalProperties:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: integer
+ *                     example: 1
+ *                   nombre:
+ *                     type: string
+ *                     example: "Evaluación Docente"
+ *                   descripcion:
+ *                     type: string
+ *                     example: "Evaluación del desempeño docente"
+ *                   configuracion:
+ *                     type: object
+ *                     properties:
+ *                       periodoValido:
+ *                         type: boolean
+ *                         example: true
+ *                       fechaInicio:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2024-03-01T00:00:00.000Z"
+ *                       fechaFin:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2024-03-31T23:59:59.999Z"
+ *                   estado:
+ *                     type: object
+ *                     properties:
+ *                       evaluacionesCreadas:
+ *                         type: boolean
+ *                         example: false
+ *                       totalMaterias:
+ *                         type: integer
+ *                         example: 5
+ *                       materiasEvaluadas:
+ *                         type: integer
+ *                         example: 0
+ *                       materiasPendientes:
+ *                         type: integer
+ *                         example: 5
+ *                       completado:
+ *                         type: boolean
+ *                         example: false
+ *                   siguientePaso:
+ *                     type: string
+ *                     enum: ["CREAR_EVALUACIONES", "COMPLETAR_DETALLES"]
+ *                     example: "CREAR_EVALUACIONES"
+ *             perfilEstudiante:
+ *               type: object
+ *               properties:
+ *                 documento:
+ *                   type: string
+ *                   example: "1000001"
+ *                 totalMaterias:
+ *                   type: integer
+ *                   example: 5
+ *                 materias:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       codigo:
+ *                         type: string
+ *                         example: "MAT101"
+ *                       nombre:
+ *                         type: string
+ *                         example: "Cálculo I"
+ *                       docente:
+ *                         type: object
+ *                         properties:
+ *                           documento:
+ *                             type: string
+ *                             example: "9000001"
+ *                           nombre:
+ *                             type: string
+ *                             example: "Juan Pérez"
+ *         message:
+ *           type: string
+ *           example: "Estado de evaluaciones obtenido exitosamente"
  */
 
 /**
@@ -326,12 +417,12 @@
  *           schema:
  *             type: object
  *             required:
- *               - COMENTARIO_GENERAL
+ *               - tipoEvaluacionId
  *             properties:
- *               COMENTARIO_GENERAL:
- *                 type: string
- *                 description: Comentario general sobre la evaluación
- *                 example: "Buen desempeño general."
+ *               tipoEvaluacionId:
+ *                 type: int
+ *                 description: id configuracion de la evaluacion
+ *                 example: 1
  *     responses:
  *       201:
  *         description: Evaluaciones creadas exitosamente
@@ -376,6 +467,41 @@
  *         description: No autorizado
  *       404:
  *         description: Configuración no encontrada
+ *       500:
+ *         description: Error del servidor
+ */
+
+/**
+ * @swagger
+ * /evaluaciones/pendientes:
+ *   get:
+ *     summary: Obtener el estado de las evaluaciones pendientes del estudiante
+ *     description: Retorna las evaluaciones pendientes del estudiante autenticado, incluyendo el estado de cada tipo de evaluación y su perfil académico
+ *     tags: [Evaluaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Estado de evaluaciones obtenido exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/EvaluacionPendienteResponse'
+ *       401:
+ *         description: Usuario no autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Usuario no autenticado"
+ *       404:
+ *         description: No se encontró información del perfil del estudiante
  *       500:
  *         description: Error del servidor
  */

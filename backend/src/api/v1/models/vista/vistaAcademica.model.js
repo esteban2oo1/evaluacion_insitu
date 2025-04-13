@@ -5,7 +5,7 @@ const VistaAcademica = {
   getAllVistaAcademica: async () => {
     try {
       const pool = getPool();
-      const [rows] = await pool.query('SELECT * FROM VISTA_ACADEMICA');
+      const [rows] = await pool.query('SELECT * FROM VISTA_ACADEMICA_INSITUS');
       return rows;
     } catch (error) {
       throw error;
@@ -17,7 +17,7 @@ const VistaAcademica = {
       const pool = getPool();
       const [rows] = await pool.query(`
         SELECT NOMBRE_DOCENTE, NOMBRE_MATERIA 
-        FROM VISTA_ACADEMICA 
+        FROM VISTA_ACADEMICA_INSITUS 
         WHERE ${tipo === 'docente' ? 'DOCUMENTO_DOCENTE' : 'DOCUMENTO_ESTUDIANTE'} = ?;
       `, [documento]);
       return rows;

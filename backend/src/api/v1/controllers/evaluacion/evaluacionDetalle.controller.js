@@ -2,6 +2,7 @@
 const EvaluacionDetalleModel = require('../../models/evaluacion/evaluacionDetalle.model');
 const { successResponse, errorResponse } = require('../../utils/responseHandler');
 const MESSAGES = require('../../../../constants/messages');
+const EvaluacionesModel = require('../../models/evaluacion/evaluaciones.model');
 
 const getDetalles = async (req, res, next) => {
   try {
@@ -72,10 +73,70 @@ const deleteDetalle = async (req, res, next) => {
   }
 };
 
+const createDetallesEvaluacion = async (req, res, next) => {
+  try {
+    const { evaluacionId, detalles, comentarioGeneral } = req.body;
+
+    // Validar que la evaluación exista
+    const evaluacion = await EvaluacionesModel.getEvaluacionById(evaluacionId);
+    if (!evaluacion) {
+      return errorResponse(res, { 
+        code: 404, 
+        message: "La evaluación no existe" 
+      });
+    }
+
+    // Validar que se proporcione el comentario general
+    if (!comentarioGeneral) {
+      return errorResponse(res, { 
+        code: 400, 
+        message: "El comentario general es requerido" 
+      });
+    }
+
+    // Actualizar el comentario general en la evaluación
+    await EvaluacionesModel.updateEvaluacion(evaluacionId, {
+      ...evaluacion,
+      COMENTARIO_GENERAL: comentarioGeneral
+    });
+
+    // Preparar los detalles para inserción masiva
+    const detallesFormateados = detalles.map(detalle => ({
+      EVALUACION_ID: evaluacionId,
+      ASPECTO_ID: detalle.aspectoId,
+      VALORACION_ID: detalle.valoracionId,
+      COMENTARIO: detalle.comentario || null
+    }));
+
+    // Crear todos los detalles
+    const detallesCreados = await EvaluacionDetalleModel.bulkCreate(detallesFormateados);
+
+    return successResponse(res, {
+      code: 201,
+      message: "Detalles de evaluación creados exitosamente",
+      data: {
+        evaluacion: {
+          ...evaluacion,
+          COMENTARIO_GENERAL: comentarioGeneral
+        },
+        detalles: detallesCreados
+      }
+    });
+  } catch (error) {
+    console.error('Error al crear detalles de evaluación:', error);
+    return errorResponse(res, {
+      code: 500,
+      message: MESSAGES.GENERAL.ERROR,
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getDetalles,
   getDetalleById,
   createDetalle,
   updateDetalle,
-  deleteDetalle
+  deleteDetalle,
+  createDetallesEvaluacion
 };
