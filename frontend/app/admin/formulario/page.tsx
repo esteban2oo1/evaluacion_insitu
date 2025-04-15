@@ -16,10 +16,11 @@ import {
   escalaValoracionService,
   configuracionValoracionService
 } from "@/lib/services/evaluacionInsitu"
-import { TipoEvaluacion, AspectoEvaluacion, EscalaValoracion } from "@/lib/types/evaluacionInsitu"
+import { TipoEvaluacion, AspectoEvaluacion, EscalaValoracion, ConfiguracionEvaluacion } from "@/lib/types/evaluacionInsitu"
 import { ModalAspecto } from "./components/ModalAspecto"
 import { ModalEscala } from "./components/ModalEscala"
 import { ModalConfirmacion } from "./components/ModalConfirmacion"
+import { ModalConfiguracionEvaluacion } from "./components/ModalConfiguracionEvaluacion"
 
 export default function FormularioPage() {
   const { toast } = useToast()
@@ -27,11 +28,10 @@ export default function FormularioPage() {
   const [tiposEvaluacion, setTiposEvaluacion] = useState<TipoEvaluacion[]>([])
   const [aspectos, setAspectos] = useState<AspectoEvaluacion[]>([])
   const [escalas, setEscalas] = useState<EscalaValoracion[]>([])
-  const [configuracionActual, setConfiguracionActual] = useState({
-    tipoEvaluacionId: "",
-    fechaInicio: "",
-    fechaFin: "",
-    activo: true
+  const [configuraciones, setConfiguraciones] = useState<ConfiguracionEvaluacion[]>([])
+  const [modalConfiguracion, setModalConfiguracion] = useState({
+    isOpen: false,
+    configuracion: undefined as ConfiguracionEvaluacion | undefined
   })
 
   // Estados para modales
@@ -60,40 +60,20 @@ export default function FormularioPage() {
 
   const cargarDatosIniciales = async () => {
     try {
-      const [tipos, aspectosData, escalasData] = await Promise.all([
+      const [tipos, aspectosData, escalasData, configuracionesData] = await Promise.all([
         tiposEvaluacionesService.getAll(),
         aspectosEvaluacionService.getAll(),
-        escalaValoracionService.getAll()
+        escalaValoracionService.getAll(),
+        configuracionEvaluacionService.getAll()
       ])
       setTiposEvaluacion(tipos)
       setAspectos(aspectosData)
       setEscalas(escalasData)
+      setConfiguraciones(configuracionesData)
     } catch (error) {
       toast({
         title: "Error",
         description: "No se pudieron cargar los datos iniciales",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const handleGuardarConfiguracion = async () => {
-    try {
-      const nuevaConfiguracion = await configuracionEvaluacionService.create({
-        TIPO_EVALUACION_ID: parseInt(configuracionActual.tipoEvaluacionId),
-        FECHA_INICIO: configuracionActual.fechaInicio,
-        FECHA_FIN: configuracionActual.fechaFin,
-        ACTIVO: configuracionActual.activo
-      })
-
-      toast({
-        title: "Éxito",
-        description: "Configuración guardada correctamente"
-      })
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo guardar la configuración",
         variant: "destructive"
       })
     }
@@ -118,6 +98,18 @@ export default function FormularioPage() {
       description: `¿Está seguro de eliminar la escala "${escala.ETIQUETA}"?`,
       onConfirm: async () => {
         await escalaValoracionService.delete(escala.ID)
+        await cargarDatosIniciales()
+      }
+    })
+  }
+
+  const handleEliminarConfiguracion = async (configuracion: ConfiguracionEvaluacion) => {
+    setModalConfirmacion({
+      isOpen: true,
+      title: "Eliminar Configuración",
+      description: `¿Está seguro de eliminar esta configuración?`,
+      onConfirm: async () => {
+        await configuracionEvaluacionService.delete(configuracion.ID)
         await cargarDatosIniciales()
       }
     })
@@ -159,54 +151,50 @@ export default function FormularioPage() {
               <CardDescription>Configure los parámetros generales de la evaluación</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Tipo de Evaluación</Label>
-                  <select
-                    className="w-full p-2 border rounded-md"
-                    value={configuracionActual.tipoEvaluacionId}
-                    onChange={(e) => setConfiguracionActual({...configuracionActual, tipoEvaluacionId: e.target.value})}
-                  >
-                    <option value="">Seleccione un tipo</option>
-                    {tiposEvaluacion.map((tipo) => (
-                      <option key={tipo.ID} value={tipo.ID}>{tipo.NOMBRE}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="space-y-4">
+                {configuraciones.map((configuracion) => {
+                  const tipoEvaluacion = tiposEvaluacion.find(
+                    (tipo) => tipo.ID === configuracion.TIPO_EVALUACION_ID
+                  )
 
-                <div className="space-y-2">
-                  <Label>Estado</Label>
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={configuracionActual.activo}
-                      onCheckedChange={(checked) => setConfiguracionActual({...configuracionActual, activo: checked})}
-                    />
-                    <span>{configuracionActual.activo ? "Activo" : "Inactivo"}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Fecha de Inicio</Label>
-                  <Input
-                    type="date"
-                    value={configuracionActual.fechaInicio}
-                    onChange={(e) => setConfiguracionActual({...configuracionActual, fechaInicio: e.target.value})}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Fecha de Fin</Label>
-                  <Input
-                    type="date"
-                    value={configuracionActual.fechaFin}
-                    onChange={(e) => setConfiguracionActual({...configuracionActual, fechaFin: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Button onClick={handleGuardarConfiguracion}>
-                  Guardar Configuración
+                  return (
+                    <div key={configuracion.ID} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h3 className="font-medium">
+                          Evaluación {tipoEvaluacion?.NOMBRE || "Desconocida"}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          Fecha Inicio: {new Date(configuracion.FECHA_INICIO).toISOString().split("T")[0]} - 
+                          Fecha Fin: {new Date(configuracion.FECHA_FIN).toISOString().split("T")[0]}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Estado: {configuracion.ACTIVO ? "Activo" : "Inactivo"}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setModalConfiguracion({ isOpen: true, configuracion })}
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleEliminarConfiguracion(configuracion)}
+                        >
+                          Eliminar
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+                <Button
+                  className="w-full"
+                  onClick={() => setModalConfiguracion({ isOpen: true, configuracion: undefined })}
+                >
+                  Agregar Nueva Configuración
                 </Button>
               </div>
             </CardContent>
@@ -320,6 +308,13 @@ export default function FormularioPage() {
           title={modalConfirmacion.title}
           description={modalConfirmacion.description}
           onConfirm={modalConfirmacion.onConfirm}
+        />
+
+        <ModalConfiguracionEvaluacion
+          isOpen={modalConfiguracion.isOpen}
+          onClose={() => setModalConfiguracion({ isOpen: false, configuracion: undefined })}
+          configuracion={modalConfiguracion.configuracion}
+          onSuccess={cargarDatosIniciales}
         />
       </div>
     </ProtectedRoute>
