@@ -4,10 +4,7 @@ import { LoginRequest, LoginResponse, ProfileResponse } from '../types/auth';
 export const authService = {
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {
     try {
-      console.log('URL base:', api.defaults.baseURL);
-      console.log('Credenciales:', credentials);
       const response = await api.post<LoginResponse>('/auth/login', credentials);
-      console.log('Respuesta:', response);
       // Guardar el token en localStorage
       if (response.data.success && response.data.data.token) {
         localStorage.setItem('token', response.data.data.token);

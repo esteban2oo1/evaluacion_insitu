@@ -1,112 +1,328 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useFormContext } from "@/lib/form-context"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
+import { ProtectedRoute } from "@/components/ProtectedRoute"
+import { 
+  tiposEvaluacionesService,
+  configuracionEvaluacionService,
+  aspectosEvaluacionService,
+  configuracionAspectoService,
+  escalaValoracionService,
+  configuracionValoracionService
+} from "@/lib/services/evaluacionInsitu"
+import { TipoEvaluacion, AspectoEvaluacion, EscalaValoracion } from "@/lib/types/evaluacionInsitu"
+import { ModalAspecto } from "./components/ModalAspecto"
+import { ModalEscala } from "./components/ModalEscala"
+import { ModalConfirmacion } from "./components/ModalConfirmacion"
 
 export default function FormularioPage() {
   const { toast } = useToast()
-  const [isFormActive, setIsFormActive] = useState(true)
-  const [expirationDate, setExpirationDate] = useState("2025-06-30")
-  const { aspects, toggleAspectActive } = useFormContext()
+  const [activeTab, setActiveTab] = useState("configuracion")
+  const [tiposEvaluacion, setTiposEvaluacion] = useState<TipoEvaluacion[]>([])
+  const [aspectos, setAspectos] = useState<AspectoEvaluacion[]>([])
+  const [escalas, setEscalas] = useState<EscalaValoracion[]>([])
+  const [configuracionActual, setConfiguracionActual] = useState({
+    tipoEvaluacionId: "",
+    fechaInicio: "",
+    fechaFin: "",
+    activo: true
+  })
 
-  // Función para manejar el cambio de estado de un aspecto
-  const handleToggleAspect = (id: number) => {
-    toggleAspectActive(id)
+  // Estados para modales
+  const [modalAspecto, setModalAspecto] = useState({
+    isOpen: false,
+    aspecto: undefined as AspectoEvaluacion | undefined
+  })
+  const [modalEscala, setModalEscala] = useState({
+    isOpen: false,
+    escala: undefined as EscalaValoracion | undefined
+  })
+  const [modalConfirmacion, setModalConfirmacion] = useState({
+    isOpen: false,
+    title: "",
+    description: "",
+    onConfirm: async () => {}
+  })
 
-    // Mostrar notificación
-    const aspect = aspects.find((a) => a.id === id)
-    if (aspect) {
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return;
+    }
+    cargarDatosIniciales();
+  }, []);
+
+  const cargarDatosIniciales = async () => {
+    try {
+      const [tipos, aspectosData, escalasData] = await Promise.all([
+        tiposEvaluacionesService.getAll(),
+        aspectosEvaluacionService.getAll(),
+        escalaValoracionService.getAll()
+      ])
+      setTiposEvaluacion(tipos)
+      setAspectos(aspectosData)
+      setEscalas(escalasData)
+    } catch (error) {
       toast({
-        title: `Aspecto ${aspect.active ? "desactivado" : "activado"}`,
-        description: `El aspecto "${aspect.name}" ha sido ${aspect.active ? "desactivado" : "activado"}.`,
+        title: "Error",
+        description: "No se pudieron cargar los datos iniciales",
+        variant: "destructive"
       })
     }
   }
 
-  return (
-    <>
-      <header className="bg-white p-4 shadow-sm">
-        <h1 className="text-xl font-bold">Formulario INSITU</h1>
-        <p className="text-sm text-gray-500">Configuración del formulario de evaluación</p>
-      </header>
+  const handleGuardarConfiguracion = async () => {
+    try {
+      const nuevaConfiguracion = await configuracionEvaluacionService.create({
+        TIPO_EVALUACION_ID: parseInt(configuracionActual.tipoEvaluacionId),
+        FECHA_INICIO: configuracionActual.fechaInicio,
+        FECHA_FIN: configuracionActual.fechaFin,
+        ACTIVO: configuracionActual.activo
+      })
 
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Configuración del Formulario INSITU</CardTitle>
-            <CardDescription>Administre los aspectos a evaluar y la disponibilidad del formulario</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div className="flex flex-col md:flex-row gap-4 p-4 bg-gray-50 rounded-lg border">
-                <div className="flex-1">
-                  <h3 className="font-medium mb-2">Estado del Formulario</h3>
-                  <div className="flex items-center">
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        checked={isFormActive}
-                        onChange={() => setIsFormActive(!isFormActive)}
-                      />
-                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                      <span className="ml-3 text-sm font-medium">{isFormActive ? "Activo" : "Inactivo"}</span>
-                    </label>
+      toast({
+        title: "Éxito",
+        description: "Configuración guardada correctamente"
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo guardar la configuración",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleEliminarAspecto = async (aspecto: AspectoEvaluacion) => {
+    setModalConfirmacion({
+      isOpen: true,
+      title: "Eliminar Aspecto",
+      description: `¿Está seguro de eliminar el aspecto "${aspecto.ETIQUETA}"?`,
+      onConfirm: async () => {
+        await aspectosEvaluacionService.delete(aspecto.ID)
+        await cargarDatosIniciales()
+      }
+    })
+  }
+
+  const handleEliminarEscala = async (escala: EscalaValoracion) => {
+    setModalConfirmacion({
+      isOpen: true,
+      title: "Eliminar Escala",
+      description: `¿Está seguro de eliminar la escala "${escala.ETIQUETA}"?`,
+      onConfirm: async () => {
+        await escalaValoracionService.delete(escala.ID)
+        await cargarDatosIniciales()
+      }
+    })
+  }
+
+  return (
+    <ProtectedRoute>
+      <div className="container mx-auto p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold">Gestión de Evaluaciones</h1>
+          <p className="text-gray-600">Administre las configuraciones de evaluación</p>
+        </div>
+
+        <div className="flex gap-4 mb-6">
+          <Button
+            variant={activeTab === "configuracion" ? "default" : "outline"}
+            onClick={() => setActiveTab("configuracion")}
+          >
+            Configuración General
+          </Button>
+          <Button
+            variant={activeTab === "aspectos" ? "default" : "outline"}
+            onClick={() => setActiveTab("aspectos")}
+          >
+            Aspectos
+          </Button>
+          <Button
+            variant={activeTab === "escalas" ? "default" : "outline"}
+            onClick={() => setActiveTab("escalas")}
+          >
+            Escalas de Valoración
+          </Button>
+        </div>
+
+        {activeTab === "configuracion" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Configuración de Evaluación</CardTitle>
+              <CardDescription>Configure los parámetros generales de la evaluación</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Tipo de Evaluación</Label>
+                  <select
+                    className="w-full p-2 border rounded-md"
+                    value={configuracionActual.tipoEvaluacionId}
+                    onChange={(e) => setConfiguracionActual({...configuracionActual, tipoEvaluacionId: e.target.value})}
+                  >
+                    <option value="">Seleccione un tipo</option>
+                    {tiposEvaluacion.map((tipo) => (
+                      <option key={tipo.ID} value={tipo.ID}>{tipo.NOMBRE}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Estado</Label>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={configuracionActual.activo}
+                      onCheckedChange={(checked) => setConfiguracionActual({...configuracionActual, activo: checked})}
+                    />
+                    <span>{configuracionActual.activo ? "Activo" : "Inactivo"}</span>
                   </div>
                 </div>
 
-                <div className="flex-1">
-                  <h3 className="font-medium mb-2">Fecha de Caducidad</h3>
-                  <input
+                <div className="space-y-2">
+                  <Label>Fecha de Inicio</Label>
+                  <Input
                     type="date"
-                    className="p-2 border rounded-md w-full"
-                    value={expirationDate}
-                    onChange={(e) => setExpirationDate(e.target.value)}
+                    value={configuracionActual.fechaInicio}
+                    onChange={(e) => setConfiguracionActual({...configuracionActual, fechaInicio: e.target.value})}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Fecha de Fin</Label>
+                  <Input
+                    type="date"
+                    value={configuracionActual.fechaFin}
+                    onChange={(e) => setConfiguracionActual({...configuracionActual, fechaFin: e.target.value})}
                   />
                 </div>
               </div>
 
-              <div>
-                <h3 className="font-medium mb-4">Aspectos a Evaluar</h3>
-                <div className="space-y-4">
-                  {aspects.map((aspect) => (
-                    <div key={aspect.id} className="flex items-center justify-between p-3 border rounded-md">
-                      <div className="flex items-center">
-                        <label className="relative inline-flex items-center cursor-pointer mr-3">
-                          <input
-                            type="checkbox"
-                            className="sr-only peer"
-                            checked={aspect.active}
-                            onChange={() => handleToggleAspect(aspect.id)}
-                          />
-                          <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-                        </label>
-                        <span>{aspect.name}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          Editar
-                        </Button>
-                        <Button variant="outline" size="sm" className="text-red-500">
-                          Eliminar
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4">
-                  <Button>Agregar Nuevo Aspecto</Button>
-                </div>
+              <div className="flex justify-end">
+                <Button onClick={handleGuardarConfiguracion}>
+                  Guardar Configuración
+                </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </main>
-    </>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === "aspectos" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Gestión de Aspectos</CardTitle>
+              <CardDescription>Administre los aspectos a evaluar</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {aspectos.map((aspecto) => (
+                  <div key={aspecto.ID} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-medium">{aspecto.ETIQUETA}</h3>
+                      <p className="text-sm text-gray-600">{aspecto.DESCRIPCION}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setModalAspecto({ isOpen: true, aspecto })}
+                      >
+                        Editar
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => handleEliminarAspecto(aspecto)}
+                      >
+                        Eliminar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <Button 
+                  className="w-full"
+                  onClick={() => setModalAspecto({ isOpen: true, aspecto: undefined })}
+                >
+                  Agregar Nuevo Aspecto
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === "escalas" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Escalas de Valoración</CardTitle>
+              <CardDescription>Configure las escalas de calificación</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {escalas.map((escala) => (
+                  <div key={escala.ID} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-medium">{escala.VALOR} - {escala.ETIQUETA}</h3>
+                      <p className="text-sm text-gray-600">{escala.DESCRIPCION}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setModalEscala({ isOpen: true, escala })}
+                      >
+                        Editar
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => handleEliminarEscala(escala)}
+                      >
+                        Eliminar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <Button 
+                  className="w-full"
+                  onClick={() => setModalEscala({ isOpen: true, escala: undefined })}
+                >
+                  Agregar Nueva Escala
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Modales */}
+        <ModalAspecto
+          isOpen={modalAspecto.isOpen}
+          onClose={() => setModalAspecto({ isOpen: false, aspecto: undefined })}
+          aspecto={modalAspecto.aspecto}
+          onSuccess={cargarDatosIniciales}
+        />
+
+        <ModalEscala
+          isOpen={modalEscala.isOpen}
+          onClose={() => setModalEscala({ isOpen: false, escala: undefined })}
+          escala={modalEscala.escala}
+          onSuccess={cargarDatosIniciales}
+        />
+
+        <ModalConfirmacion
+          isOpen={modalConfirmacion.isOpen}
+          onClose={() => setModalConfirmacion({ ...modalConfirmacion, isOpen: false })}
+          title={modalConfirmacion.title}
+          description={modalConfirmacion.description}
+          onConfirm={modalConfirmacion.onConfirm}
+        />
+      </div>
+    </ProtectedRoute>
   )
 }
 

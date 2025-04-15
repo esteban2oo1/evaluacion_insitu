@@ -25,10 +25,10 @@ const EscalaValoracion = {
   createEscala: async (escalaData) => {
     try {
       const pool = getPool();
-      const { VALOR, ETIQUETA, DESCRIPCION, PUNTAJE, ORDEN, ACTIVO } = escalaData;
+      const { VALOR, ETIQUETA, DESCRIPCION } = escalaData;
       const [result] = await pool.query(
         'INSERT INTO ESCALA_VALORACION (VALOR, ETIQUETA, DESCRIPCION) VALUES (?, ?,?)',
-        [VALOR, ETIQUETA, DESCRIPCION ?? true]
+        [VALOR, ETIQUETA, DESCRIPCION]
       );
       return { id: result.insertId, ...escalaData };
     } catch (error) {
@@ -39,7 +39,7 @@ const EscalaValoracion = {
   updateEscala: async (id, escalaData) => {
     try {
       const pool = getPool();
-      const { VALOR, ETIQUETA, DESCRIPCION, PUNTAJE, ORDEN, ACTIVO } = escalaData;
+      const { VALOR, ETIQUETA, DESCRIPCION } = escalaData;
       await pool.query(
         'UPDATE ESCALA_VALORACION SET VALOR = ?, ETIQUETA = ?, DESCRIPCION = ? WHERE ID = ?',
         [VALOR, ETIQUETA, DESCRIPCION, id]
