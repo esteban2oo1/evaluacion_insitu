@@ -1,16 +1,13 @@
 "use client"
 
-import { CardFooter } from "@/components/ui/card"
-
-import type React from "react"
-
 import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { authService } from "@/lib/services/auth"
+import { Eye, EyeOff } from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -21,111 +18,120 @@ export default function LoginPage() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
-  // Usuarios de prueba
-  const testUsers = {
-    estudiante: { cedula: "1098765432", enrolled: true, name: "Carlos Martínez" },
-    docente: { cedula: "1087654321", name: "Juan Pérez" },
-    admin: { cedula: "1076543210", name: "Ana Gómez" },
-  }
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    setTimeout(() => {
-      setIsLoading(false)
+    try {
+      const response = await authService.login({
+        user_username: username,
+        user_password: password
+      })
 
-      if (role === "estudiante") {
-        // Verificar si es el estudiante de prueba
-        if (username === testUsers.estudiante.cedula) {
-          if (testUsers.estudiante.enrolled) {
-            router.push("/estudiante/dashboard")
-          } else {
-            toast({
-              title: "Error de matrícula",
-              description: "Tu matrícula no está activa. Por favor, matricúlate de inmediato.",
-              variant: "destructive",
-            })
+      if (response.success) {
+        const profile = await authService.getProfile()
+        
+        // Obtener todos los roles (principal y adicionales)
+        const roles = [
+          profile.data.roles.principal.nombre.toLowerCase(),
+          ...profile.data.roles.adicionales.map(rol => rol.nombre.toLowerCase())
+        ]
+
+        let redirectPath = ""
+        
+        // Verificar si tiene rol de admin o director de programa (en cualquier posición)
+        if (roles.includes("admin") || roles.includes("director de programa")) {
+          redirectPath = "/admin/dashboard"
+        } else {
+          // Si no es admin, usar el rol principal
+          const userRole = profile.data.roles.principal.nombre.toLowerCase()
+          switch (userRole) {
+            case "estudiante":
+              redirectPath = "/estudiante/dashboard"
+              break
+            case "docente":
+              redirectPath = "/docente/dashboard"
+              break
+            default:
+              toast({
+                title: "Error",
+                description: "Rol de usuario no reconocido",
+                variant: "destructive",
+              })
+              return
           }
-        } else {
-          toast({
-            title: "Error de autenticación",
-            description: "Cédula o contraseña incorrecta.",
-            variant: "destructive",
-          })
         }
-      } else if (role === "docente") {
-        if (username === testUsers.docente.cedula) {
-          router.push("/docente/dashboard")
-        } else {
-          toast({
-            title: "Error de autenticación",
-            description: "Cédula o contraseña incorrecta.",
-            variant: "destructive",
-          })
-        }
-      } else if (role === "admin") {
-        if (username === testUsers.admin.cedula) {
-          router.push("/admin/dashboard")
-        } else {
-          toast({
-            title: "Error de autenticación",
-            description: "Cédula o contraseña incorrecta.",
-            variant: "destructive",
-          })
-        }
+
+        router.replace(redirectPath)
       }
-    }, 1000)
+    } catch (error: any) {
+      toast({
+        title: "Error de autenticación",
+        description: error.response?.data?.message || "Error al iniciar sesión",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const roleTitle = {
-    estudiante: "Estudiante",
-    docente: "Docente",
-    admin: "Administrador",
-  }[role]
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Iniciar Sesión como {roleTitle}</CardTitle>
-          <CardDescription>Ingrese sus credenciales para acceder al sistema</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Número de Cédula</Label>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <div className="flex w-full max-w-4xl bg-white shadow-md rounded-xl overflow-hidden">
+        {/* Logo a la izquierda */}
+        <div className="hidden md:flex items-center justify-center bg-white w-1/2">
+          <img
+            src="https://sibcolombia.net/wp-content/uploads/2017/08/logo-itp.png"
+            alt="Logo ITP"
+            className="w-80 h-90"
+          />
+        </div>
+
+        {/* Login Form a la derecha */}
+        <div className="w-full md:w-1/2 p-6">
+          <CardHeader className="text-center mb-4">
+            <CardTitle className="text-2xl font-semibold text-gray-800">Iniciar sesión</CardTitle>
+          </CardHeader>
+
+          <form onSubmit={handleLogin}>
+            <CardContent className="space-y-4">
               <Input
                 id="username"
-                placeholder="Ej: 1098765432"
+                placeholder="Número de Cédula"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col">
-            <Button className="w-full" type="submit" disabled={isLoading}>
-              {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
-            </Button>
-            <p className="mt-4 text-sm text-center text-gray-500">
-              ¿Problemas para acceder? Contacte al administrador del sistema.
-            </p>
-          </CardFooter>
-        </form>
-      </Card>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  placeholder="Contraseña"
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-500 hover:text-gray-700"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col pt-4">
+              <Button className="w-full" type="submit" disabled={isLoading}>
+                {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
+              </Button>
+            </CardFooter>
+          </form>
+        </div>
+      </div>
     </div>
   )
 }
-
