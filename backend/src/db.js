@@ -12,7 +12,7 @@ const poolConfig = {
   connectionLimit: 10,
   queueLimit: 0,
   connectTimeout: 10000, // 10 segundos
-  acquireTimeout: 10000, // 10 segundos
+  waitForConnectionsTimeout: 10000, // 10 segundos
   enableKeepAlive: true,
   keepAliveInitialDelay: 0
 };

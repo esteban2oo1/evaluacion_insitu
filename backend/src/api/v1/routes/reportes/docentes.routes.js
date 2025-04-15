@@ -8,7 +8,7 @@ const {
 } = require('../../controllers/reportes/docentes.controller');
 
 // Obtener lista de docentes con sus asignaturas y progreso
-router.get('/docentes-asignaturas', getDocentesAsignaturasController);
+router.get('/asignaturas', getDocentesAsignaturasController);
 
 // Obtener estudiantes evaluados por docente, materia y grupo
 router.get('/estudiantes-evaluados/:idDocente/:codAsignatura/:grupo', getEstudiantesEvaluadosController);

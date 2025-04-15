@@ -1,6 +1,7 @@
 const { getPool } = require('../../../../db');
 
 const getDocentesAsignaturasModel = async () => {
+    const pool = await getPool();
     const query = `
         WITH ASIGNATURA_SEMESTRES AS (
             SELECT 
@@ -89,11 +90,12 @@ const getDocentesAsignaturasModel = async () => {
             pp.PROGRAMA_PREDOMINANTE
         ORDER BY porcentaje_completado DESC;
     `;
-    const result = await getPool.query(query);
-    return result.rows;
+    const [result] = await pool.query(query);
+    return result;
 };
 
 const getEstudiantesEvaluadosModel = async (idDocente, codAsignatura, grupo) => {
+    const pool = await getPool();
     const query = `
         SELECT 
             COUNT(DISTINCT va.ID_ESTUDIANTE) AS total_estudiantes,
@@ -106,15 +108,16 @@ const getEstudiantesEvaluadosModel = async (idDocente, codAsignatura, grupo) => 
         LEFT JOIN evaluacion_detalle ed 
             ON e.ID = ed.EVALUACION_ID
         WHERE 
-            va.ID_DOCENTE = $1 
-            AND va.COD_ASIGNATURA = $2 
-            AND va.GRUPO = $3;
+            va.ID_DOCENTE = ? 
+            AND va.COD_ASIGNATURA = ? 
+            AND va.GRUPO = ?;
     `;
-    const result = await getPool.query(query, [idDocente, codAsignatura, grupo]);
-    return result.rows[0];
+    const [result] = await pool.query(query, [idDocente, codAsignatura, grupo]);
+    return result[0];
 };
 
 const getAspectosPuntajeModel = async (idDocente) => {
+    const pool = await getPool();
     const query = `
         SELECT 
             va.ID_DOCENTE, 
@@ -133,7 +136,7 @@ const getAspectosPuntajeModel = async (idDocente) => {
         JOIN configuracion_valoracion cv
             ON ed.VALORACION_ID = cv.VALORACION_ID
         WHERE 
-            va.ID_DOCENTE = $1 
+            va.ID_DOCENTE = ?
         GROUP BY 
             va.ID_DOCENTE, 
             va.DOCENTE, 
@@ -142,11 +145,12 @@ const getAspectosPuntajeModel = async (idDocente) => {
             va.ID_DOCENTE, 
             a.ETIQUETA;
     `;
-    const result = await getPool.query(query, [idDocente]);
-    return result.rows;
+    const [result] = await pool.query(query, [idDocente]);
+    return result;
 };
 
 const getComentariosModel = async (idDocente) => {
+    const pool = await getPool();
     const query = `
         SELECT 
             va.ID_DOCENTE, 
@@ -164,11 +168,11 @@ const getComentariosModel = async (idDocente) => {
         JOIN aspectos_evaluacion a
             ON ed.ASPECTO_ID = a.ID
         WHERE 
-            va.ID_DOCENTE = $1
+            va.ID_DOCENTE = ?
         ORDER BY va.ID_DOCENTE, a.ETIQUETA;
     `;
-    const result = await getPool.query(query, [idDocente]);
-    return result.rows;
+    const [result] = await pool.query(query, [idDocente]);
+    return result;
 };
 
 module.exports = {

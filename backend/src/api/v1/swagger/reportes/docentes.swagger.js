@@ -7,7 +7,7 @@
 
 /**
  * @swagger
- * /reportes/docentes/docentes-asignaturas:
+ * /reportes/docentes/asignaturas:
  *   get:
  *     summary: Obtiene lista de docentes con sus asignaturas y progreso de evaluación
  *     tags: [Reportes Docentes]
