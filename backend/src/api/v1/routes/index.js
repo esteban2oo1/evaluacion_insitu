@@ -23,7 +23,9 @@ const vistaEstudianteRoutes = require('./vista/vistaEstudiante.routes');
 const vistaAcademicaRoutes = require('./vista/vistaAcademica.routes');
 
 // reportes
-const reportesRoutes = require('./evaluacion/reportes.routes');
+const dashboardRoutes = require('./reportes/dashboard.routes');
+const estudiantesRoutes = require('./reportes/estudiantes.routes');
+const docentesRoutes = require('./reportes/docentes.routes');
 
 const router = express.Router();
 
@@ -38,7 +40,8 @@ router.get('/', (req, res) => {
       escalaValoracion: '/api/v1/escala-valoracion',
       estudiantes: '/api/v1/estudiantes',
       academica: '/api/v1/academica',
-      reportes: '/api/v1/reportes',
+      dashboard: '/api/v1/dashboard',
+      reportesEstudiantes: '/api/v1/reportes/estudiantes',
       userRoles: '/api/v1/user-roles'
     },
     documentation: '/api-docs'
@@ -69,7 +72,9 @@ router.use('/auth', userAuthRoutes);
 router.use('/user-roles', userRoleRoutes);
 
 // reportes
-router.use('/reportes', reportesRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/reportes/estudiantes', estudiantesRoutes);
+router.use('/reportes/docentes', docentesRoutes);
 
 module.exports = router;
 
