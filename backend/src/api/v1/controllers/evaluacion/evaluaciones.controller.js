@@ -14,9 +14,9 @@ const createEvaluacionU = async (req, res, next) => {
         message: "Usuario no autenticado" 
       });
     }
-
+    console.log('Contenido de req.user:', req.user);
     // Obtener información del perfil del estudiante
-    const { documento: DOCUMENTO_ESTUDIANTE } = req.user;
+    const { username: DOCUMENTO_ESTUDIANTE } = req.user;
     const { tipoEvaluacionId } = req.body;
     
     // Validar que se proporcione el tipo de evaluación
@@ -49,6 +49,7 @@ const createEvaluacionU = async (req, res, next) => {
     }
 
     const perfilEstudiante = await VistaEstudianteModel.getEstudianteByDocumento(DOCUMENTO_ESTUDIANTE);
+    console.log('Datos de perfilEstudiante:', perfilEstudiante);
     if (!perfilEstudiante || perfilEstudiante.length === 0) {
       return errorResponse(res, { 
         code: 404, 
@@ -59,13 +60,24 @@ const createEvaluacionU = async (req, res, next) => {
     let evaluacionesCreadas = [];
     
     for (let materia of perfilEstudiante) {
-      const { NOMBRE_MATERIA, NOMBRE_DOCENTE, DOCUMENTO_DOCENTE, CODIGO_MATERIA } = materia;
+      const { 
+        ASIGNATURA: NOMBRE_MATERIA, 
+        DOCENTE: NOMBRE_DOCENTE, 
+        ID_DOCENTE: DOCUMENTO_DOCENTE, 
+        COD_ASIGNATURA 
+      } = materia;
+
+      // Validar que COD_ASIGNATURA no sea null o undefined
+      if (!COD_ASIGNATURA) {
+        console.warn(`Materia omitida porque COD_ASIGNATURA es null o undefined:`, materia);
+        continue;
+      }
 
       // Verificar si ya existe una evaluación para esta materia y configuración
       const evaluacionExistente = await Evaluaciones.findOne(
         tipoEvaluacionId,
         DOCUMENTO_ESTUDIANTE,
-        CODIGO_MATERIA
+        COD_ASIGNATURA
       );
 
       if (evaluacionExistente && evaluacionExistente.length > 0) {
@@ -76,14 +88,14 @@ const createEvaluacionU = async (req, res, next) => {
       const nuevaEvaluacion = await Evaluaciones.createEvaluacion({
         DOCUMENTO_ESTUDIANTE,
         DOCUMENTO_DOCENTE,
-        CODIGO_MATERIA,
-        CONFIGURACION_ID: tipoEvaluacionId,
+        CODIGO_MATERIA: COD_ASIGNATURA,
+        ID_CONFIGURACION: tipoEvaluacionId,
       });
 
       evaluacionesCreadas.push({ 
         id: nuevaEvaluacion.id,
         materia: {
-          codigo: CODIGO_MATERIA,
+          codigo: COD_ASIGNATURA,
           nombre: NOMBRE_MATERIA
         },
         docente: {
@@ -296,7 +308,7 @@ const getEvaluacionesPendientes = async (req, res, next) => {
           documento: DOCUMENTO_ESTUDIANTE,
           totalMaterias: perfilEstudiante.length,
           materias: perfilEstudiante.map(m => ({
-            codigo: m.CODIGO_MATERIA,
+            codigo: m.COD_ASIGNATURA,
             nombre: m.NOMBRE_MATERIA,
             docente: {
               documento: m.DOCUMENTO_DOCENTE,
@@ -370,13 +382,13 @@ const iniciarProcesoEvaluacion = async (req, res, next) => {
       const evaluacionExistente = await Evaluaciones.findOne(
         tipoEvaluacionId,
         DOCUMENTO_ESTUDIANTE,
-        materia.CODIGO_MATERIA
+        materia.COD_ASIGNATURA
       );
 
       if (!evaluacionExistente || evaluacionExistente.length === 0) {
         materiasPendientes.push({
           materia: {
-            codigo: materia.CODIGO_MATERIA,
+            codigo: materia.COD_ASIGNATURA,
             nombre: materia.NOMBRE_MATERIA
           },
           docente: {

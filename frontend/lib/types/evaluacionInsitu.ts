@@ -41,6 +41,19 @@ export interface TipoEvaluacion {
   NOMBRE: string;
   DESCRIPCION: string;
   ACTIVO: boolean;
-  FECHA_CREACION: string;
-  FECHA_ACTUALIZACION: string;
 } 
+
+export interface ConfiguracionResponse {
+  configuracion: ConfiguracionEvaluacion;
+  aspectos: AspectoEvaluacion[];
+  valoraciones: ConfiguracionValoracion[];
+}
+
+export interface Evaluacion {
+  ID: number;
+  DOCUMENTO_ESTUDIANTE: string;
+  DOCUMENTO_DOCENTE: string;
+  CODIGO_MATERIA: string;
+  COMENTARIO_GENERAL: string | null;
+  ID_CONFIGURACION: number;
+}

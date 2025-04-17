@@ -1,5 +1,6 @@
 import api from '@/lib/api';
 import { TipoEvaluacion } from '@/lib/types/evaluacionInsitu';
+import { ConfiguracionResponse } from '@/lib/types/evaluacionInsitu';
 
 export const tiposEvaluacionesService = {
   getAll: async (): Promise<TipoEvaluacion[]> => {
@@ -26,7 +27,7 @@ export const tiposEvaluacionesService = {
     await api.delete(`/tipos-evaluaciones/${id}`);
   },
 
-  getConfiguracion: async (id: number): Promise<TipoEvaluacion> => {
+  getConfiguracion: async (id: number): Promise<ConfiguracionResponse> => {
     const response = await api.get(`/tipos-evaluaciones/configuracion/${id}`);
     return response.data.data;
   }

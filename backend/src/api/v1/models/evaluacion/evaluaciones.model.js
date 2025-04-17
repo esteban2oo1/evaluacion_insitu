@@ -6,7 +6,7 @@ const Evaluaciones = {
     try {
         const pool = getPool();
         const [rows] = await pool.query(
-            'SELECT * FROM EVALUACIONES WHERE CONFIGURACION_ID = ? AND DOCUMENTO_ESTUDIANTE = ? AND CODIGO_MATERIA = ?', 
+            'SELECT * FROM EVALUACIONES WHERE ID_CONFIGURACION = ? AND DOCUMENTO_ESTUDIANTE = ? AND CODIGO_MATERIA = ?', 
             [configuracionId, documentoEstudiante, codigoMateria]
         );
         return rows;
@@ -58,11 +58,11 @@ const Evaluaciones = {
   createEvaluacion: async (evaluacionData) => {
     try {
       const pool = getPool();
-      const { DOCUMENTO_ESTUDIANTE, DOCUMENTO_DOCENTE, CODIGO_MATERIA, COMENTARIO_GENERAL, CONFIGURACION_ID, } = evaluacionData;
+      const { DOCUMENTO_ESTUDIANTE, DOCUMENTO_DOCENTE, CODIGO_MATERIA, COMENTARIO_GENERAL, ID_CONFIGURACION, } = evaluacionData;
       
       const [result] = await pool.query(
-        'INSERT INTO EVALUACIONES (DOCUMENTO_ESTUDIANTE, DOCUMENTO_DOCENTE, CODIGO_MATERIA, COMENTARIO_GENERAL, CONFIGURACION_ID) VALUES (?, ?, ?, ?, ?)',
-        [DOCUMENTO_ESTUDIANTE, DOCUMENTO_DOCENTE, CODIGO_MATERIA, COMENTARIO_GENERAL, CONFIGURACION_ID]
+        'INSERT INTO EVALUACIONES (DOCUMENTO_ESTUDIANTE, DOCUMENTO_DOCENTE, CODIGO_MATERIA, COMENTARIO_GENERAL, ID_CONFIGURACION) VALUES (?, ?, ?, ?, ?)',
+        [DOCUMENTO_ESTUDIANTE, DOCUMENTO_DOCENTE, CODIGO_MATERIA, COMENTARIO_GENERAL, ID_CONFIGURACION]
       );
       
       return { id: result.insertId, ...evaluacionData };
@@ -74,11 +74,11 @@ const Evaluaciones = {
   updateEvaluacion: async (id, evaluacionData) => {
     try {
       const pool = getPool();
-      const { DOCUMENTO_ESTUDIANTE, DOCUMENTO_DOCENTE, CODIGO_MATERIA, COMENTARIO_GENERAL, CONFIGURACION_ID } = evaluacionData;
+      const { DOCUMENTO_ESTUDIANTE, DOCUMENTO_DOCENTE, CODIGO_MATERIA, COMENTARIO_GENERAL, ID_CONFIGURACION } = evaluacionData;
       
       await pool.query(
-        'UPDATE EVALUACIONES SET DOCUMENTO_ESTUDIANTE = ?, DOCUMENTO_DOCENTE = ?, CODIGO_MATERIA = ?, COMENTARIO_GENERAL = ?, CONFIGURACION_ID = ? WHERE ID = ?',
-        [DOCUMENTO_ESTUDIANTE, DOCUMENTO_DOCENTE, CODIGO_MATERIA, COMENTARIO_GENERAL, CONFIGURACION_ID, id]
+        'UPDATE EVALUACIONES SET DOCUMENTO_ESTUDIANTE = ?, DOCUMENTO_DOCENTE = ?, CODIGO_MATERIA = ?, COMENTARIO_GENERAL = ?, ID_CONFIGURACION = ? WHERE ID = ?',
+        [DOCUMENTO_ESTUDIANTE, DOCUMENTO_DOCENTE, CODIGO_MATERIA, COMENTARIO_GENERAL, ID_CONFIGURACION, id]
       );
       
       return { id, ...evaluacionData };
