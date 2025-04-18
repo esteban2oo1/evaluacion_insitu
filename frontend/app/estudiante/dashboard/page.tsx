@@ -17,6 +17,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog"
+import { getEvaluacionByEstudiante } from "@/lib/services/evaluacionInsitu/evaluaciones" 
+import type { Evaluacion } from "@/lib/types/evaluacionInsitu"
+import { useRouter } from "next/navigation"
 
 interface ReporteEvaluaciones {
   total_materias: number
@@ -26,11 +29,13 @@ interface ReporteEvaluaciones {
 }
 
 export default function EstudianteDashboard() {
+  const router = useRouter()
   const { toast } = useToast()
   const [perfil, setPerfil] = useState<PerfilEstudiante | null>(null)
   const [materias, setMaterias] = useState<MateriaEstudiante[]>([])
   const [reporte, setReporte] = useState<ReporteEvaluaciones | null>(null)
   const [showProfileModal, setShowProfileModal] = useState(false)
+  const [evaluaciones, setEvaluaciones] = useState<Evaluacion[]>([])
 
   useEffect(() => {
     const cargarPerfil = async () => {
@@ -52,6 +57,18 @@ export default function EstudianteDashboard() {
             toast({
               title: "Error",
               description: "No se pudo cargar el reporte de evaluaciones",
+              variant: "destructive",
+            })
+          }
+
+          // Cargar evaluaciones del estudiante
+          try {
+            const evaluacionesData = await getEvaluacionByEstudiante(perfilData.documento)
+            setEvaluaciones(Array.isArray(evaluacionesData) ? evaluacionesData : [])
+          } catch (error) {
+            toast({
+              title: "Error",
+              description: "No se pudo cargar las evaluaciones",
               variant: "destructive",
             })
           }
@@ -138,13 +155,13 @@ export default function EstudianteDashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {materias.map((materia) => (
+              {evaluaciones.map((evaluacion) => (
                 <div
-                  key={materia.id}
+                  key={evaluacion.ID_CONFIGURACION}
                   className="bg-white p-6 rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 flex flex-col justify-between h-full"
                 >
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-4">{materia.nombre}</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4">{evaluacion.ASIGNATURA}</h3>
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -153,12 +170,28 @@ export default function EstudianteDashboard() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500">Docente</p>
-                        <p className="text-base font-semibold text-gray-900">{materia.docente.nombre}</p>
+                        <p className="text-base font-semibold text-gray-900">{evaluacion.DOCENTE}</p>
                       </div>
                     </div>
                   </div>
+                  <p className="text-sm text-gray-600 mt-2">
+                    {evaluacion.SEMESTRE_PREDOMINANTE
+                      .toLowerCase()
+                      .replace(/(\d+)\s+semestre/, (_, num) => `${num} Semestre`)}
+                  </p>
+                  <p className="text-sm text-gray-600">{evaluacion.PROGRAMA_PREDOMINANTE}</p>
                   <Button
-                    onClick={() => handleEvaluarDocente(materia.id)}
+                    onClick={() =>
+                      router.push(
+                        `/estudiante/evaluar/${evaluacion.ID_CONFIGURACION}` +
+                        `?docente=${encodeURIComponent(evaluacion.DOCENTE)}` +
+                        `&cod=${encodeURIComponent(evaluacion.CODIGO_MATERIA)}` +
+                        `&id=${encodeURIComponent(evaluacion.ID)}` +
+                        `&materia=${encodeURIComponent(evaluacion.ASIGNATURA)}` +
+                        `&semestre=${encodeURIComponent(evaluacion.SEMESTRE_PREDOMINANTE)}` +
+                        `&programa=${encodeURIComponent(evaluacion.PROGRAMA_PREDOMINANTE)}`
+                      )
+                    }
                     className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-2 rounded-lg transition-colors duration-200 mt-4"
                   >
                     Evaluar Docente

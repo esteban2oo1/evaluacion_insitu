@@ -36,6 +36,6 @@ export const getEvaluacionByDocente = async (documento: string): Promise<Evaluac
 };
 
 export const getEvaluacionByEstudiante = async (documento: string): Promise<Evaluacion[]> => {
-  const response = await api.get(`/evaluaciones/insitu/estudiante/${documento}`);
-  return response.data;
+  const response = await api.get(`/evaluaciones/estudiante/${documento}`);
+  return response.data.data;
 };

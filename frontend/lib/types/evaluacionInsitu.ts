@@ -46,14 +46,34 @@ export interface TipoEvaluacion {
 export interface ConfiguracionResponse {
   configuracion: ConfiguracionEvaluacion;
   aspectos: AspectoEvaluacion[];
-  valoraciones: ConfiguracionValoracion[];
+  valoraciones: EscalaValoracion[];
 }
 
 export interface Evaluacion {
   ID: number;
   DOCUMENTO_ESTUDIANTE: string;
+  DOCENTE: string;
+  ASIGNATURA: string;
   DOCUMENTO_DOCENTE: string;
   CODIGO_MATERIA: string;
-  COMENTARIO_GENERAL: string | null;
   ID_CONFIGURACION: number;
+  SEMESTRE_PREDOMINANTE: string;
+  PROGRAMA_PREDOMINANTE: string;
+}
+
+export interface DetalleEvaluacionRequest {
+  EVALUACION_ID: number;
+  ASPECTO_ID: number;
+  VALORACION_ID: number;
+  COMENTARIO: string;
+}
+
+export interface BulkEvaluacionRequest {
+  evaluacionId: number;
+  comentarioGeneral: string;
+  detalles: {
+    aspectoId: number;
+    valoracionId: number;
+    comentario: string;
+  }[];
 }

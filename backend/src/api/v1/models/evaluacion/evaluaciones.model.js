@@ -38,12 +38,53 @@ const Evaluaciones = {
   getEvaluacionesByEstudiante: async (documentoEstudiante) => {
     try {
       const pool = getPool();
-      const [rows] = await pool.query('SELECT * FROM EVALUACIONES WHERE DOCUMENTO_ESTUDIANTE = ?', [documentoEstudiante]);
+      const query = `
+        WITH SEMESTRE_PREDOMINANTE AS (
+            SELECT 
+                COD_ASIGNATURA,
+                ID_DOCENTE,
+                SEMESTRE AS SEMESTRE_PREDOMINANTE,
+                ROW_NUMBER() OVER (PARTITION BY COD_ASIGNATURA, ID_DOCENTE ORDER BY COUNT(*) DESC) AS rn
+            FROM vista_academica_insitus
+            GROUP BY COD_ASIGNATURA, ID_DOCENTE, SEMESTRE
+        ),
+        PROGRAMA_PREDOMINANTE AS (
+            SELECT 
+                COD_ASIGNATURA,
+                ID_DOCENTE,
+                NOM_PROGRAMA AS PROGRAMA_PREDOMINANTE,
+                ROW_NUMBER() OVER (PARTITION BY COD_ASIGNATURA, ID_DOCENTE ORDER BY COUNT(*) DESC) AS rn
+            FROM vista_academica_insitus
+            GROUP BY COD_ASIGNATURA, ID_DOCENTE, NOM_PROGRAMA
+        )
+  
+        SELECT DISTINCT
+            e.ID,
+            e.DOCUMENTO_ESTUDIANTE,
+            e.DOCUMENTO_DOCENTE,
+            vai.DOCENTE,
+            vai.ASIGNATURA,
+            e.CODIGO_MATERIA,
+            e.ID_CONFIGURACION,
+            sp.SEMESTRE_PREDOMINANTE,
+            pp.PROGRAMA_PREDOMINANTE
+        FROM EVALUACIONES e
+        LEFT JOIN vista_academica_insitus vai 
+            ON e.DOCUMENTO_DOCENTE = vai.ID_DOCENTE AND e.CODIGO_MATERIA = vai.COD_ASIGNATURA
+        LEFT JOIN SEMESTRE_PREDOMINANTE sp 
+            ON e.CODIGO_MATERIA = sp.COD_ASIGNATURA AND e.DOCUMENTO_DOCENTE = sp.ID_DOCENTE AND sp.rn = 1
+        LEFT JOIN PROGRAMA_PREDOMINANTE pp 
+            ON e.CODIGO_MATERIA = pp.COD_ASIGNATURA AND e.DOCUMENTO_DOCENTE = pp.ID_DOCENTE AND pp.rn = 1
+        WHERE e.DOCUMENTO_ESTUDIANTE = ?
+      `;
+      
+      const [rows] = await pool.query(query, [documentoEstudiante]);
       return rows;
     } catch (error) {
       throw error;
     }
   },
+  
 
   getEvaluacionesByDocente: async (documentoDocente) => {
     try {
