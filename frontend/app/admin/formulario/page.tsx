@@ -235,6 +235,7 @@ export default function FormularioPage() {
             setModalConfiguracionValoracion={setModalConfiguracionValoracion}
             configuracionAspectos={configuracionAspectos}
             configuracionValoraciones={configuracionValoraciones}
+            handleEliminarConfiguracion={handleEliminarConfiguracion}
           />
         )}
 
@@ -272,6 +273,7 @@ export default function FormularioPage() {
           isOpen={modalConfiguracionAspecto.isOpen}
           onClose={() => setModalConfiguracionAspecto({ isOpen: false, configuracion: undefined })}
           configuracion={modalConfiguracionAspecto.configuracion}
+          configuracionEvaluacionId={configuracionSeleccionada!}
           onSuccess={() => cargarDatosFiltrados(configuracionSeleccionada!)}
         />
 
@@ -279,6 +281,7 @@ export default function FormularioPage() {
           isOpen={modalConfiguracionValoracion.isOpen}
           onClose={() => setModalConfiguracionValoracion({ isOpen: false, configuracion: undefined })}
           configuracion={modalConfiguracionValoracion.configuracion}
+          configuracionEvaluacionId={configuracionSeleccionada!}
           onSuccess={() => cargarDatosFiltrados(configuracionSeleccionada!)}
         />
       </div>

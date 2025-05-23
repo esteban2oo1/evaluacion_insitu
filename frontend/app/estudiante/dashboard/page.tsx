@@ -157,7 +157,7 @@ export default function EstudianteDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {evaluaciones.map((evaluacion) => (
                 <div
-                  key={evaluacion.ID_CONFIGURACION}
+                  key={evaluacion.ID}
                   className="bg-white p-6 rounded-lg border border-gray-200 hover:shadow-md transition-all duration-200 flex flex-col justify-between h-full"
                 >
                   <div>

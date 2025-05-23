@@ -90,6 +90,8 @@ export default function EvaluarDocentePage({
     };
 
     try {
+      console.log("Payload a enviar:", bulkPayload);
+
       await createDetallesEvaluacion(bulkPayload);
       toast({
         title: "Evaluación enviada",

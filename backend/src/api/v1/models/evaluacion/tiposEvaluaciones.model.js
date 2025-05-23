@@ -18,10 +18,10 @@ const TiposEvaluacion = {
       if (configuracion.length === 0) {
         throw new Error('Configuración no encontrada');
       }
-      
-      // Retrieve the aspects associated with the configuration
+
+      // Retrieve the aspectos associated with the configuration
       const [aspectos] = await pool.query(
-        'SELECT ae.ID, ae.ETIQUETA, ae.DESCRIPCION, ca.ORDEN ' +
+        'SELECT ca.ID, ca.ASPECTO_ID, ae.ETIQUETA, ae.DESCRIPCION, ca.ORDEN ' +
         'FROM CONFIGURACION_ASPECTO ca ' +
         'JOIN ASPECTOS_EVALUACION ae ON ca.ASPECTO_ID = ae.ID ' +
         'WHERE ca.CONFIGURACION_EVALUACION_ID = ? AND ca.ACTIVO = TRUE ' +
@@ -31,7 +31,7 @@ const TiposEvaluacion = {
       
       // Retrieve the evaluations for this configuration
       const [valoraciones] = await pool.query(
-        'SELECT ev.ID, ev.ETIQUETA, ev.VALOR, cv.PUNTAJE ' +
+        'SELECT cv.ID, cv.VALORACION_ID, ev.ETIQUETA, ev.VALOR, cv.PUNTAJE, cv.ORDEN ' +
         'FROM CONFIGURACION_VALORACION cv ' +
         'JOIN ESCALA_VALORACION ev ON cv.VALORACION_ID = ev.ID ' +
         'WHERE cv.CONFIGURACION_EVALUACION_ID = ? AND cv.ACTIVO = TRUE ' +

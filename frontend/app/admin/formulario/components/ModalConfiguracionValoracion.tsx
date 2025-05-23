@@ -1,114 +1,167 @@
-import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
-} from "@/components/ui/dialog"
-import { ConfiguracionValoracion } from "@/lib/types/evaluacionInsitu"
-import { configuracionValoracionService } from "@/lib/services/evaluacionInsitu"
-import { useToast } from "@/hooks/use-toast"
+} from "@/components/ui/dialog";
+import {
+  ConfiguracionValoracion,
+  EscalaValoracion,
+} from "@/lib/types/evaluacionInsitu";
+import {
+  configuracionValoracionService,
+  escalaValoracionService,
+} from "@/lib/services/evaluacionInsitu";
+import { useToast } from "@/hooks/use-toast";
 
 interface ModalConfiguracionValoracionProps {
-  isOpen: boolean
-  onClose: () => void
-  configuracion?: ConfiguracionValoracion
-  onSuccess: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  configuracion?: ConfiguracionValoracion;
+  onSuccess: () => void;
+  configuracionEvaluacionId: number;
 }
 
 export function ModalConfiguracionValoracion({
   isOpen,
   onClose,
   configuracion,
-  onSuccess
+  onSuccess,
+  configuracionEvaluacionId,
 }: ModalConfiguracionValoracionProps) {
-  const { toast } = useToast()
+  const { toast } = useToast();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    CONFIGURACION_EVALUACION_ID: string;
+    VALORACION_ID: string;
+    PUNTAJE: string;
+    ORDEN: string;
+  }>({
     CONFIGURACION_EVALUACION_ID: "",
     VALORACION_ID: "",
     PUNTAJE: "",
-    ORDEN: ""
-  })
+    ORDEN: "",
+  });
+
+  const [valoraciones, setValoraciones] = useState<EscalaValoracion[]>([]);
 
   useEffect(() => {
+    if (!isOpen) return;
+    const fetchValoraciones = async () => {
+      try {
+        const data = await escalaValoracionService.getAll();
+        setValoraciones(data);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las valoraciones",
+          variant: "destructive",
+        });
+      }
+    };
+    fetchValoraciones();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     if (configuracion) {
       setFormData({
-        CONFIGURACION_EVALUACION_ID: configuracion.CONFIGURACION_EVALUACION_ID.toString(),
-        VALORACION_ID: configuracion.VALORACION_ID.toString(),
-        PUNTAJE: configuracion.PUNTAJE.toString(),
-        ORDEN: configuracion.ORDEN.toString()
-      })
+        CONFIGURACION_EVALUACION_ID: configuracionEvaluacionId?.toString() ?? "",
+        VALORACION_ID: configuracion.VALORACION_ID?.toString() ?? "",
+        PUNTAJE: configuracion.PUNTAJE?.toString() ?? "",
+        ORDEN: configuracion.ORDEN?.toString() ?? "",
+      });
     } else {
       setFormData({
         CONFIGURACION_EVALUACION_ID: "",
         VALORACION_ID: "",
         PUNTAJE: "",
-        ORDEN: ""
-      })
+        ORDEN: "",
+      });
     }
-  }, [configuracion, isOpen])
+  }, [configuracion, configuracionEvaluacionId, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (!formData.CONFIGURACION_EVALUACION_ID || !formData.VALORACION_ID || !formData.PUNTAJE || !formData.ORDEN) {
+    const { CONFIGURACION_EVALUACION_ID, VALORACION_ID, PUNTAJE, ORDEN } = formData;
+
+    if (!CONFIGURACION_EVALUACION_ID || !VALORACION_ID || !PUNTAJE || !ORDEN) {
       toast({
         title: "Campos requeridos",
         description: "Todos los campos son obligatorios",
-        variant: "destructive"
-      })
-      return
+        variant: "destructive",
+      });
+      return;
     }
 
+    const payload: ConfiguracionValoracion = {
+      CONFIGURACION_EVALUACION_ID: parseInt(CONFIGURACION_EVALUACION_ID),
+      VALORACION_ID: parseInt(VALORACION_ID),
+      PUNTAJE: parseFloat(PUNTAJE),
+      ORDEN: parseInt(ORDEN),
+      ACTIVO: true,
+      ID: configuracion?.ID ?? 0,
+    };
+
     try {
-      const payload = {
-        ...formData,
-        CONFIGURACION_EVALUACION_ID: parseInt(formData.CONFIGURACION_EVALUACION_ID),
-        VALORACION_ID: parseInt(formData.VALORACION_ID),
-        PUNTAJE: parseFloat(formData.PUNTAJE),
-        ORDEN: parseFloat(formData.ORDEN),
-        ACTIVO: true
-      }
-
-      if (configuracion) {
-        await configuracionValoracionService.update(configuracion.ID, payload)
+      if (configuracion?.ID) {
+        await configuracionValoracionService.update(configuracion.ID, payload);
         toast({
-          title: "Éxito",
-          description: "Configuración de valoración actualizada correctamente"
-        })
+          title: "Actualizado",
+          description: "Configuración de valoración actualizada correctamente",
+        });
       } else {
-        await configuracionValoracionService.create(payload)
+        await configuracionValoracionService.create(payload);
         toast({
-          title: "Éxito",
-          description: "Configuración de valoración creada correctamente"
-        })
+          title: "Creado",
+          description: "Configuración de valoración creada correctamente",
+        });
       }
-
-      onSuccess()
-      onClose()
+      onSuccess();
+      onClose();
     } catch (error) {
       toast({
         title: "Error",
         description: "No se pudo guardar la configuración",
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {configuracion ? "Editar Configuración de Valoración" : "Nueva Configuración de Valoración"}
+            {configuracion?.ID ? "Editar Configuración de Valoración" : "Nueva Configuración de Valoración"}
           </DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Valoración</Label>
+            <select
+              value={formData.VALORACION_ID}
+              onChange={(e) => setFormData({ ...formData, VALORACION_ID: e.target.value })}
+              required
+              className="w-full border rounded-md p-2"
+            >
+              <option value="" disabled>
+                Seleccione una valoración
+              </option>
+              {valoraciones.map((v) => (
+                <option key={v.ID} value={v.ID}>
+                  {v.ETIQUETA}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="space-y-2">
             <Label>Puntaje</Label>
             <Input
@@ -119,6 +172,7 @@ export function ModalConfiguracionValoracion({
               required
             />
           </div>
+
           <div className="space-y-2">
             <Label>Orden</Label>
             <Input
@@ -129,16 +183,17 @@ export function ModalConfiguracionValoracion({
               required
             />
           </div>
-          <DialogFooter>
+
+          <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
             <Button type="submit">
-              {configuracion ? "Actualizar" : "Crear"}
+              {configuracion?.ID ? "Actualizar" : "Crear"}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

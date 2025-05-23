@@ -1,169 +1,191 @@
-import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
-} from "@/components/ui/dialog"
-import { ConfiguracionAspecto, AspectoEvaluacion } from "@/lib/types/evaluacionInsitu"
-import { configuracionAspectoService, aspectosEvaluacionService } from "@/lib/services/evaluacionInsitu"
-import { useToast } from "@/hooks/use-toast"
+} from "@/components/ui/dialog";
+import {
+  ConfiguracionAspecto,
+  AspectoEvaluacion,
+} from "@/lib/types/evaluacionInsitu";
+import {
+  configuracionAspectoService,
+  aspectosEvaluacionService,
+} from "@/lib/services/evaluacionInsitu";
+import { useToast } from "@/hooks/use-toast";
 
 interface ModalConfiguracionAspectoProps {
-  isOpen: boolean
-  onClose: () => void
-  configuracion?: ConfiguracionAspecto
-  onSuccess: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  configuracion?: ConfiguracionAspecto;
+  onSuccess: () => void;
+  configuracionEvaluacionId: number;
 }
 
 export function ModalConfiguracionAspecto({
   isOpen,
   onClose,
   configuracion,
-  onSuccess
+  onSuccess,
+  configuracionEvaluacionId,
 }: ModalConfiguracionAspectoProps) {
-  const { toast } = useToast()
+  const { toast } = useToast();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    CONFIGURACION_EVALUACION_ID: string;
+    ASPECTO_ID: string;
+    ORDEN: string;
+  }>({
     CONFIGURACION_EVALUACION_ID: "",
     ASPECTO_ID: "",
-    ORDEN: ""
-  })
+    ORDEN: "",
+  });
 
-  const [aspectos, setAspectos] = useState<AspectoEvaluacion[]>([])
+  const [aspectos, setAspectos] = useState<AspectoEvaluacion[]>([]);
 
+  // Cargar aspectos disponibles
   useEffect(() => {
+    if (!isOpen) return;
     const fetchAspectos = async () => {
       try {
-        const data = await aspectosEvaluacionService.getAll()
-        setAspectos(data)
+        const data = await aspectosEvaluacionService.getAll();
+        setAspectos(data);
       } catch (error) {
         toast({
           title: "Error",
           description: "No se pudieron cargar los aspectos",
-          variant: "destructive"
-        })
+          variant: "destructive",
+        });
       }
-    }
+    };
+    fetchAspectos();
+  }, [isOpen]);
 
-    if (isOpen) {
-      fetchAspectos()
-    }
-  }, [isOpen, toast])
-
+  // Cargar datos en modo edición
   useEffect(() => {
     if (configuracion) {
       setFormData({
-        CONFIGURACION_EVALUACION_ID: configuracion.CONFIGURACION_EVALUACION_ID.toString(),
-        ASPECTO_ID: configuracion.ASPECTO_ID.toString(),
-        ORDEN: configuracion.ORDEN.toString()
-      })
+        CONFIGURACION_EVALUACION_ID: configuracionEvaluacionId?.toString() ?? "",
+        ASPECTO_ID: configuracion.ASPECTO_ID?.toString() ?? "",
+        ORDEN: configuracion.ORDEN?.toString() ?? "",
+      });
     } else {
       setFormData({
         CONFIGURACION_EVALUACION_ID: "",
         ASPECTO_ID: "",
-        ORDEN: ""
-      })
+        ORDEN: "",
+      });
     }
-  }, [configuracion, isOpen])
+  }, [configuracion, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  e.preventDefault();
 
-    if (!formData.CONFIGURACION_EVALUACION_ID || !formData.ASPECTO_ID || !formData.ORDEN) {
-      toast({
-        title: "Campos requeridos",
-        description: "Todos los campos son obligatorios",
-        variant: "destructive"
-      })
-      return
-    }
+  const { CONFIGURACION_EVALUACION_ID, ASPECTO_ID, ORDEN } = formData;
 
-    try {
-      const payload = {
-        ...formData,
-        CONFIGURACION_EVALUACION_ID: parseInt(formData.CONFIGURACION_EVALUACION_ID),
-        ASPECTO_ID: parseInt(formData.ASPECTO_ID),
-        ORDEN: parseFloat(formData.ORDEN),
-        ACTIVO: true
-      }
-
-      if (configuracion) {
-        await configuracionAspectoService.update(configuracion.ID, payload)
-        toast({
-          title: "Éxito",
-          description: "Configuración de aspecto actualizada correctamente"
-        })
-      } else {
-        await configuracionAspectoService.create(payload)
-        toast({
-          title: "Éxito",
-          description: "Configuración de aspecto creada correctamente"
-        })
-      }
-
-      onSuccess()
-      onClose()
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo guardar la configuración",
-        variant: "destructive"
-      })
-    }
+  if (!CONFIGURACION_EVALUACION_ID || !ASPECTO_ID || !ORDEN) {
+    toast({
+      title: "Campos requeridos",
+      description: "Todos los campos son obligatorios",
+      variant: "destructive",
+    });
+    return;
   }
+
+  const payload: ConfiguracionAspecto = {
+    CONFIGURACION_EVALUACION_ID: parseInt(CONFIGURACION_EVALUACION_ID),
+    ASPECTO_ID: parseInt(ASPECTO_ID),
+    ORDEN: parseFloat(ORDEN),
+    ACTIVO: true,
+    ID: configuracion?.ID ?? 0,
+  };
+
+  try {
+    if (configuracion?.ID) {
+      await configuracionAspectoService.update(configuracion.ID, payload);
+      toast({
+        title: "Actualizado",
+        description: "Configuración de aspecto actualizada correctamente",
+      });
+    } else {
+      await configuracionAspectoService.create(payload);
+      toast({
+        title: "Creado",
+        description: "Configuración de aspecto creada correctamente",
+      });
+    }
+    onSuccess();
+    onClose();
+  } catch (error) {
+    console.error("❌ Error al guardar:", error);
+    toast({
+      title: "Error",
+      description: "No se pudo guardar la configuración",
+      variant: "destructive",
+    });
+  }
+};
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {configuracion ? "Editar Configuración de Aspecto" : "Nueva Configuración de Aspecto"}
+            {configuracion?.ID
+              ? "Editar Configuración de Aspecto"
+              : "Nueva Configuración de Aspecto"}
           </DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Aspecto</Label>
             <select
               value={formData.ASPECTO_ID}
-              onChange={(e) => setFormData({ ...formData, ASPECTO_ID: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, ASPECTO_ID: e.target.value })
+              }
               required
               className="w-full border rounded-md p-2"
             >
               <option value="" disabled>
                 Seleccione un aspecto
               </option>
-              {aspectos.map((aspecto) => (
-                <option key={aspecto.ID} value={aspecto.ID}>
-                  {aspecto.ETIQUETA}
+              {aspectos.map((a) => (
+                <option key={a.ID} value={a.ID}>
+                  {a.ETIQUETA}
                 </option>
               ))}
             </select>
           </div>
+
           <div className="space-y-2">
             <Label>Orden</Label>
             <Input
               type="number"
               step="0.01"
               value={formData.ORDEN}
-              onChange={(e) => setFormData({ ...formData, ORDEN: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, ORDEN: e.target.value })
+              }
               required
             />
           </div>
-          <DialogFooter>
+
+          <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
             <Button type="submit">
-              {configuracion ? "Actualizar" : "Crear"}
+              {configuracion?.ID ? "Actualizar" : "Crear"}
             </Button>
-          </DialogFooter>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

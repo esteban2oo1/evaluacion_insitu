@@ -17,7 +17,6 @@ export const aspectosEvaluacionService = {
     return response.data.data;
   },
   
-
   update: async (id: number, data: Partial<AspectoEvaluacion>): Promise<AspectoEvaluacion> => {
     const response = await api.put(`/aspectos-evaluacion/${id}`, data);
     return response.data.data;

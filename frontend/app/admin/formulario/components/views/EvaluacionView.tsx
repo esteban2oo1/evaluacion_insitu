@@ -21,6 +21,7 @@ interface EvaluacionViewProps {
   }>>;
   configuracionAspectos: any[];
   configuracionValoraciones: any[];
+  handleEliminarConfiguracion: (configuracion: ConfiguracionEvaluacion) => Promise<void>;
 }
 
 const formatearFecha = (fechaISO: string) => {
@@ -41,7 +42,8 @@ export function EvaluacionView({
   setModalConfiguracionAspecto,
   setModalConfiguracionValoracion,
   configuracionAspectos,
-  configuracionValoraciones
+  configuracionValoraciones,
+  handleEliminarConfiguracion
 }: EvaluacionViewProps) {
   return (
     <Card>
