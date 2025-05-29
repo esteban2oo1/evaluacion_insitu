@@ -22,8 +22,8 @@ const login = async (req, res, next) => {
     const user = await UserAuthModel.getUserByUsername(user_username);
     if (!user) {
       return errorResponse(res, {
-        code: 404,
-        message: MESSAGES.AUTH.USER_NOT_FOUND,
+        code: 401,
+        message: MESSAGES.AUTH.INVALID_CREDENTIALS,
         error: 'Usuario no encontrado'
       });
     }

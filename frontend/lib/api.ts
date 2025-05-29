@@ -29,9 +29,7 @@ api.interceptors.response.use(
   (error) => {
     console.error('Error en interceptor de respuestas:', error);
     if (error.response?.status === 401) {
-      // Si el token es inválido o ha expirado, redirigir al login
       localStorage.removeItem('token');
-      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

@@ -1,35 +1,50 @@
 import api from '../api';
-import { LoginRequest, LoginResponse, ProfileResponse } from '../types/auth';
+import {
+  LoginRequest,
+  LoginResponse,
+  ErrorResponse,
+  ProfileResponse
+} from '../types/auth';
 
 export const authService = {
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {
     try {
-      const response = await api.post<LoginResponse>('/auth/login', credentials);
-      // Guardar el token en localStorage
-      if (response.data.success && response.data.data.token) {
-        localStorage.setItem('token', response.data.data.token);
-        // Configurar el token en el header de axios para futuras peticiones
-        api.defaults.headers.common['Authorization'] = `Bearer ${response.data.data.token}`;
+      const response = await api.post<LoginResponse | ErrorResponse>('/auth/login', credentials);
+
+      if (response.status === 200 && response.data.success && 'data' in response.data) {
+        const { token } = response.data.data;
+        localStorage.setItem('token', token);
+        return response.data as LoginResponse;
       }
-      return response.data;
-    } catch (error) {
-      console.error('Error en el login:', error);
-      throw error;
+
+      const errorResponse = response.data as ErrorResponse;
+      throw errorResponse;
+
+    } catch (error: any) {
+      if (error.response && error.response.data) {
+        const backendError: ErrorResponse = {
+          success: false,
+          message: error.response.data.message || 'Credenciales inválidas',
+          error: error.response.data.error || 'Usuario o contraseña incorrectos',
+        };
+        throw backendError;
+      }
+
+      throw {
+        success: false,
+        message: 'Error al iniciar sesión',
+        error: error.message || 'Error desconocido',
+      } as ErrorResponse;
     }
   },
 
   getProfile: async (): Promise<ProfileResponse> => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No hay token de autenticación');
-      }
-      // Asegurarse de que el token esté en los headers
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      if (!token) throw new Error('No hay token de autenticación');
       const response = await api.get<ProfileResponse>('/auth/profile');
       return response.data;
     } catch (error) {
-      console.error('Error al obtener el perfil:', error);
       throw error;
     }
   },
@@ -42,4 +57,4 @@ export const authService = {
   isAuthenticated: (): boolean => {
     return !!localStorage.getItem('token');
   }
-}; 
+};
