@@ -14,6 +14,7 @@ import {
   configuracionValoracionService
 } from "@/lib/services/evaluacionInsitu";
 import { TipoEvaluacion, AspectoEvaluacion, EscalaValoracion, ConfiguracionEvaluacion } from "@/lib/types/evaluacionInsitu";
+import { ModalTipoEvaluacion } from "./components/ModalTipoEvaluacion";
 import { ModalAspecto } from "./components/ModalAspecto";
 import { ModalEscala } from "./components/ModalEscala";
 import { ModalConfirmacion } from "./components/ModalConfirmacion";
@@ -22,6 +23,7 @@ import { ModalConfiguracionAspecto } from "./components/ModalConfiguracionAspect
 import { ModalConfiguracionValoracion } from "./components/ModalConfiguracionValoracion";
 
 // Importar las vistas separadas
+import { TiposEvaluacionView } from "./components/views/TipoEvaluacionView";
 import { ConfiguracionView } from "./components/views/ConfiguracionView";
 import { AspectosView } from "./components/views/AspectosView";
 import { EscalasView } from "./components/views/EscalasView";
@@ -40,6 +42,11 @@ export default function FormularioPage() {
   });
 
   // Estados para modales
+  const [modalTipoEvaluacion, setModalTipoEvaluacion] = useState({
+    isOpen: false,
+    tipo: undefined as TipoEvaluacion | undefined,
+  });
+
   const [modalAspecto, setModalAspecto] = useState({
     isOpen: false,
     aspecto: undefined as AspectoEvaluacion | undefined,
@@ -117,6 +124,18 @@ export default function FormularioPage() {
     }
   };
 
+  const handleEliminarTipoEvaluacion = async (tipo: TipoEvaluacion) => {
+    setModalConfirmacion({
+      isOpen: true,
+      title: "Eliminar Tipo de Evaluación",
+      description: `¿Está seguro de eliminar el tipo de evaluación "${tipo.NOMBRE}"?`,
+      onConfirm: async () => {
+        await tiposEvaluacionesService.delete(tipo.ID);
+        await cargarDatosIniciales();
+      },
+    });
+  };
+
   const handleEliminarAspecto = async (aspecto: AspectoEvaluacion) => {
     setModalConfirmacion({
       isOpen: true,
@@ -153,6 +172,30 @@ export default function FormularioPage() {
     });
   };
 
+  const handleEliminarConfiguracionAspecto = async (configuracion: ConfiguracionEvaluacion) => {
+    setModalConfirmacion({
+      isOpen: true,
+      title: "Eliminar Configuración de Aspecto",
+      description: `¿Está seguro de eliminar esta configuración de aspecto?`,
+      onConfirm: async () => {
+        await configuracionAspectoService.delete(configuracion.ID);
+        await cargarDatosIniciales();
+      },
+    });
+  };
+
+  const handleEliminarConfiguracionValoracion = async (configuracion: ConfiguracionEvaluacion) => {
+    setModalConfirmacion({
+      isOpen: true,
+      title: "Eliminar Configuración de Valoración",
+      description: `¿Está seguro de eliminar esta configuración de valoración?`,
+      onConfirm: async () => {
+        await configuracionValoracionService.delete(configuracion.ID);
+        await cargarDatosIniciales();
+      },
+    });
+  };
+
   useEffect(() => {
     // Seleccionar automáticamente la primera configuración activa al cargar el componente
     if (configuraciones.length > 0) {
@@ -173,6 +216,12 @@ export default function FormularioPage() {
         </div>
 
         <div className="flex gap-4 mb-6">
+          <Button
+            variant={activeTab === "tiposEvaluacion" ? "default" : "outline"}
+            onClick={() => setActiveTab("tiposEvaluacion")}
+          >
+            Tipos de Evaluación
+          </Button>
           <Button
             variant={activeTab === "configuracion" ? "default" : "outline"}
             onClick={() => setActiveTab("configuracion")}
@@ -199,12 +248,22 @@ export default function FormularioPage() {
           </Button>
         </div>
 
+        {activeTab === "tiposEvaluacion" && (
+          <TiposEvaluacionView
+            tiposEvaluacion={tiposEvaluacion}
+            setModalTipoEvaluacion={setModalTipoEvaluacion}
+            handleEliminarTipoEvaluacion={handleEliminarTipoEvaluacion}
+            refreshTipos={cargarDatosIniciales}
+          />
+        )}
+
         {activeTab === "configuracion" && (
           <ConfiguracionView
             configuraciones={configuraciones}
             tiposEvaluacion={tiposEvaluacion}
             setModalConfiguracion={setModalConfiguracion}
             handleEliminarConfiguracion={handleEliminarConfiguracion}
+            refreshConfiguracion={cargarDatosIniciales}
           />
         )}
 
@@ -235,11 +294,21 @@ export default function FormularioPage() {
             setModalConfiguracionValoracion={setModalConfiguracionValoracion}
             configuracionAspectos={configuracionAspectos}
             configuracionValoraciones={configuracionValoraciones}
-            handleEliminarConfiguracion={handleEliminarConfiguracion}
+            handleEliminarConfiguracionAspecto={handleEliminarConfiguracionAspecto}
+            handleEliminarConfiguracionValoracion={handleEliminarConfiguracionValoracion}
+            refreshAspectos={cargarDatosIniciales}
           />
         )}
 
         {/* Modales */}
+
+        <ModalTipoEvaluacion
+          isOpen={modalTipoEvaluacion.isOpen}
+          onClose={() => setModalTipoEvaluacion({ isOpen: false, tipo: undefined })}
+          tipo={modalTipoEvaluacion.tipo}
+          onSuccess={cargarDatosIniciales}
+        />  
+
         <ModalAspecto
           isOpen={modalAspecto.isOpen}
           onClose={() => setModalAspecto({ isOpen: false, aspecto: undefined })}

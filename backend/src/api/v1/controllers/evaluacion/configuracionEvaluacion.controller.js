@@ -110,10 +110,37 @@ const deleteConfiguracion = async (req, res, next) => {
   }
 };
 
+const updateEstadoConfiguracion = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { activo } = req.body;
+
+    if (typeof activo !== 'number' || (activo !== 0 && activo !== 1)) {
+      return errorResponse(res, { code: 400, message: 'Valor de estado inválido' });
+    }
+
+    const configuracion = await ConfiguracionEvaluacionModel.getConfiguracionById(id);
+
+    if (!configuracion) {
+      return errorResponse(res, { code: 404, message: MESSAGES.GENERAL.NOT_FOUND });
+    }
+
+    const updated = await ConfiguracionEvaluacionModel.updateEstado(id, activo);
+
+    return successResponse(res, {
+      message: MESSAGES.GENERAL.UPDATED,
+      data: updated
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getConfiguraciones,
   getConfiguracionById,
   createConfiguracion,
   updateConfiguracion,
   deleteConfiguracion,
+  updateEstadoConfiguracion
 };

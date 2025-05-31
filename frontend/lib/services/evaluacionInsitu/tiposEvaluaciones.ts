@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import { TipoEvaluacion } from '@/lib/types/evaluacionInsitu';
+import { TipoEvaluacion, EstadoActivo} from '@/lib/types/evaluacionInsitu';
 import { ConfiguracionResponse } from '@/lib/types/evaluacionInsitu';
 
 export const tiposEvaluacionesService = {
@@ -13,7 +13,7 @@ export const tiposEvaluacionesService = {
     return response.data.data;
   },
 
-  create: async (data: Omit<TipoEvaluacion, 'ID' | 'FECHA_CREACION' | 'FECHA_ACTUALIZACION'>): Promise<TipoEvaluacion> => {
+  create: async (data: Omit<TipoEvaluacion, 'ID'>): Promise<TipoEvaluacion> => {
     const response = await api.post('/tipos-evaluaciones', data);
     return response.data.data;
   },
@@ -30,5 +30,11 @@ export const tiposEvaluacionesService = {
   getConfiguracion: async (id: number): Promise<ConfiguracionResponse> => {
     const response = await api.get(`/tipos-evaluaciones/configuracion/${id}`);
     return response.data.data;
+  },
+
+  updateEstado: async (estado: EstadoActivo): Promise<EstadoActivo> => {
+    const response = await api.patch(`/tipos-evaluaciones/${estado.id}/estado`, estado);
+    return response.data.data;
   }
+
 }; 

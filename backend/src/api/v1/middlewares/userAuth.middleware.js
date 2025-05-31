@@ -43,21 +43,14 @@ const checkRole = (allowedRoles) => async (req, res, next) => {
       [userId]
     );
 
-    if (dataloginRows.length > 0) {
-      const userRoleId = dataloginRows[0].user_idrole;
-      const roleName = dataloginRows[0].role_name;
-      
-      // Verificar si el ID del rol está permitido (para roles de DATALOGIN)
-      if (allowedRoles.includes(userRoleId.toString())) {
-        return next();
-      }
-      // Verificar si el nombre del rol está permitido
-      if (allowedRoles.includes(roleName)) {
-        return next();
-      }
+    if (dataloginRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
     }
 
-    // Verificamos en users_roles
+    const mainRoleId = dataloginRows[0].user_idrole;
+    const mainRoleName = dataloginRows[0].role_name;
+
+    // Ahora obtenemos los roles adicionales desde users_roles
     const [userRolesRows] = await pool.query(
       `SELECT r.ID, r.NOMBRE_ROL 
        FROM users_roles ur 
@@ -66,29 +59,27 @@ const checkRole = (allowedRoles) => async (req, res, next) => {
       [userId]
     );
 
-    if (userRolesRows.length > 0) {
-      // Verificar si alguno de los IDs o nombres de roles adicionales está permitido
-      const hasAllowedRole = userRolesRows.some(row => {
-        const roleId = row.ID.toString();
-        const roleName = row.NOMBRE_ROL;
-        return allowedRoles.includes(roleId) || allowedRoles.includes(roleName);
-      });
-      
-      if (hasAllowedRole) {
-        return next();
-      }
+    // Crear un arreglo de roles que contenga tanto el rol principal como los roles adicionales
+    const roles = [mainRoleName, ...userRolesRows.map(row => row.NOMBRE_ROL)];
+
+    // Guardamos los roles en el objeto `req.user`
+    req.user.roles = roles;
+
+    // Verificamos si el rol principal o alguno de los roles adicionales está permitido
+    if (allowedRoles.includes(mainRoleName) || userRolesRows.some(row => allowedRoles.includes(row.NOMBRE_ROL))) {
+      return next();
     }
 
-    return res.status(403).json({ 
-      success: false, 
-      message: 'No tienes permiso para acceder a este recurso' 
+    return res.status(403).json({
+      success: false,
+      message: 'No tienes permiso para acceder a este recurso'
     });
 
   } catch (error) {
     console.error('Error en checkRole:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Error al verificar roles' 
+    return res.status(500).json({
+      success: false,
+      message: 'Error al verificar roles'
     });
   }
 };

@@ -5,11 +5,13 @@ const {
   getConfiguracionAspectoById,
   createConfiguracionAspecto,
   updateConfiguracionAspecto,
-  deleteConfiguracionAspecto
+  deleteConfiguracionAspecto,
+  updateEstadoConfiguracionAspecto
 } = require('../../controllers/evaluacion/configuracionAspecto.controller');
 
 const router = express.Router();
 
+router.patch('/:id/estado', updateEstadoConfiguracionAspecto);
 router.get('/', getConfiguracionesAspecto);
 router.post('/', createConfiguracionAspecto);
 router.get('/:id', getConfiguracionAspectoById);

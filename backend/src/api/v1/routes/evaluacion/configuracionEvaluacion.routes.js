@@ -5,6 +5,7 @@ const {
   createConfiguracion,
   updateConfiguracion,
   deleteConfiguracion,
+  updateEstadoConfiguracion
 } = require('../../controllers/evaluacion/configuracionEvaluacion.controller');
 
 const configuracionEvaluacionSchema = require('../../validations/evaluacion/configuracionEvaluacion.validation');
@@ -13,6 +14,7 @@ const validate = require('../../middlewares/validate');
 
 const router = express.Router();
 
+router.patch('/:id/estado', updateEstadoConfiguracion);
 router.get('/', getConfiguraciones);
 router.post('/', verifyToken, checkRole(['Admin']), validate(configuracionEvaluacionSchema), createConfiguracion);
 router.get('/:id', verifyToken, checkRole(['Admin']), getConfiguracionById);

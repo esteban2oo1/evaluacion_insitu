@@ -195,3 +195,57 @@
  *       500:
  *         description: Error del servidor
  */
+
+/**
+ * @swagger
+ * /configuracion-aspecto/{id}/estado:
+ *   patch:
+ *     summary: Actualizar el estado (activo/inactivo) de una configuración de aspecto
+ *     tags: [Configuración Aspecto]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: ID de la configuración de aspecto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - activo
+ *             properties:
+ *               activo:
+ *                 type: boolean
+ *                 description: Nuevo estado de la configuración de aspecto
+ *                 example: false
+ *     responses:
+ *       200:
+ *         description: Estado actualizado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     activo:
+ *                       type: boolean
+ *                       example: false
+ *       400:
+ *         description: Valor inválido para el estado
+ *       404:
+ *         description: Tipo de evaluación no encontrado
+ *       500:
+ *         description: Error del servidor
+ */

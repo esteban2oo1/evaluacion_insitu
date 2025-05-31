@@ -77,3 +77,8 @@ export interface BulkEvaluacionRequest {
     comentario: string;
   }[];
 }
+
+export interface EstadoActivo {
+  id: number;
+  activo: number;
+}

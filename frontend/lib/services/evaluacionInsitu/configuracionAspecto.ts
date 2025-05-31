@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import { ConfiguracionAspecto } from '@/lib/types/evaluacionInsitu';
+import { ConfiguracionAspecto, EstadoActivo } from '@/lib/types/evaluacionInsitu';
 
 export const configuracionAspectoService = {
   getAll: async (): Promise<ConfiguracionAspecto[]> => {
@@ -24,5 +24,10 @@ export const configuracionAspectoService = {
 
   delete: async (id: number): Promise<void> => {
     await api.delete(`/configuracion-aspecto/${id}`);
+  },
+
+  updateEstado: async (estado: EstadoActivo): Promise<EstadoActivo> => {
+    const response = await api.patch(`/configuracion-aspecto/${estado.id}/estado`, estado);
+    return response.data.data;
   }
 }; 

@@ -7,7 +7,31 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Card, CardContent } from "@/components/ui/card";
+import { 
+  Star, 
+  Edit3, 
+  Plus, 
+  AlertCircle, 
+  Hash, 
+  Check, 
+  ChevronsUpDown,
+  Award
+} from "lucide-react";
 import {
   ConfiguracionValoracion,
   EscalaValoracion,
@@ -48,7 +72,11 @@ export function ModalConfiguracionValoracion({
   });
 
   const [valoraciones, setValoraciones] = useState<EscalaValoracion[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [open, setOpen] = useState(false);
 
+  // Cargar valoraciones disponibles
   useEffect(() => {
     if (!isOpen) return;
     const fetchValoraciones = async () => {
@@ -57,17 +85,17 @@ export function ModalConfiguracionValoracion({
         setValoraciones(data);
       } catch (error) {
         toast({
-          title: "Error",
-          description: "No se pudieron cargar las valoraciones",
+          title: "Error al cargar datos",
+          description: "No se pudieron cargar las valoraciones disponibles",
           variant: "destructive",
         });
       }
     };
     fetchValoraciones();
-  }, [isOpen]);
+  }, [isOpen, toast]);
 
+  // Cargar datos en modo edición
   useEffect(() => {
-    if (!isOpen) return;
     if (configuracion) {
       setFormData({
         CONFIGURACION_EVALUACION_ID: configuracionEvaluacionId?.toString() ?? "",
@@ -77,33 +105,54 @@ export function ModalConfiguracionValoracion({
       });
     } else {
       setFormData({
-        CONFIGURACION_EVALUACION_ID: "",
+        CONFIGURACION_EVALUACION_ID: configuracionEvaluacionId?.toString() ?? "",
         VALORACION_ID: "",
         PUNTAJE: "",
         ORDEN: "",
       });
     }
+    setErrors({});
   }, [configuracion, configuracionEvaluacionId, isOpen]);
+
+  const validateForm = () => {
+    const newErrors: {[key: string]: string} = {};
+
+    if (!formData.VALORACION_ID) {
+      newErrors.VALORACION_ID = "Debe seleccionar una valoración";
+    }
+
+    if (!formData.PUNTAJE.trim()) {
+      newErrors.PUNTAJE = "El puntaje es obligatorio";
+    } else if (isNaN(parseFloat(formData.PUNTAJE))) {
+      newErrors.PUNTAJE = "El puntaje debe ser un número válido";
+    }
+
+    if (!formData.ORDEN.trim()) {
+      newErrors.ORDEN = "El orden es obligatorio";
+    } else if (isNaN(parseFloat(formData.ORDEN)) || parseFloat(formData.ORDEN) <= 0) {
+      newErrors.ORDEN = "El orden debe ser un número mayor a 0";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const { CONFIGURACION_EVALUACION_ID, VALORACION_ID, PUNTAJE, ORDEN } = formData;
-
-    if (!CONFIGURACION_EVALUACION_ID || !VALORACION_ID || !PUNTAJE || !ORDEN) {
-      toast({
-        title: "Campos requeridos",
-        description: "Todos los campos son obligatorios",
-        variant: "destructive",
-      });
+    if (!validateForm()) {
       return;
     }
+
+    setIsLoading(true);
+
+    const { CONFIGURACION_EVALUACION_ID, VALORACION_ID, PUNTAJE, ORDEN } = formData;
 
     const payload: ConfiguracionValoracion = {
       CONFIGURACION_EVALUACION_ID: parseInt(CONFIGURACION_EVALUACION_ID),
       VALORACION_ID: parseInt(VALORACION_ID),
       PUNTAJE: parseFloat(PUNTAJE),
-      ORDEN: parseInt(ORDEN),
+      ORDEN: parseFloat(ORDEN),
       ACTIVO: true,
       ID: configuracion?.ID ?? 0,
     };
@@ -112,87 +161,225 @@ export function ModalConfiguracionValoracion({
       if (configuracion?.ID) {
         await configuracionValoracionService.update(configuracion.ID, payload);
         toast({
-          title: "Actualizado",
-          description: "Configuración de valoración actualizada correctamente",
+          title: "¡Actualización exitosa!",
+          description: "La configuración de valoración se actualizó correctamente",
         });
       } else {
         await configuracionValoracionService.create(payload);
         toast({
-          title: "Creado",
-          description: "Configuración de valoración creada correctamente",
+          title: "¡Creación exitosa!",
+          description: "Nueva configuración de valoración creada",
         });
       }
       onSuccess();
       onClose();
     } catch (error) {
+      console.error("❌ Error al guardar:", error);
       toast({
-        title: "Error",
-        description: "No se pudo guardar la configuración",
+        title: "Error al guardar",
+        description: "No se pudo completar la operación. Intenta nuevamente.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value });
+    
+    // Limpiar error del campo cuando el usuario empieza a escribir
+    if (errors[field]) {
+      setErrors({ ...errors, [field]: "" });
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {configuracion?.ID ? "Editar Configuración de Valoración" : "Nueva Configuración de Valoración"}
-          </DialogTitle>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader className="text-center sm:text-left">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              {configuracion?.ID ? (
+                <Edit3 className="h-5 w-5 text-primary" />
+              ) : (
+                <Plus className="h-5 w-5 text-primary" />
+              )}
+            </div>
+            <div className="flex-1">
+              <DialogTitle className="text-xl font-semibold">
+                {configuracion?.ID
+                  ? "Editar Configuración de Valoración"
+                  : "Nueva Configuración de Valoración"}
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                {configuracion?.ID
+                  ? "Modifica la configuración de valoración en la evaluación"
+                  : "Agrega una nueva valoración a la configuración de evaluación"}
+              </p>
+            </div>
+          </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Valoración</Label>
-            <select
-              value={formData.VALORACION_ID}
-              onChange={(e) => setFormData({ ...formData, VALORACION_ID: e.target.value })}
-              required
-              className="w-full border rounded-md p-2"
-            >
-              <option value="" disabled>
-                Seleccione una valoración
-              </option>
-              {valoraciones.map((v) => (
-                <option key={v.ID} value={v.ID}>
-                  {v.ETIQUETA}
-                </option>
-              ))}
-            </select>
-          </div>
+        <Card className="border-0 shadow-none bg-muted/20">
+          <CardContent className="p-5">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Campo Valoración */}
+              <div className="space-y-3">
+                <Label htmlFor="valoracion" className="text-sm font-medium flex items-center gap-2">
+                  <Star className="h-4 w-4 text-primary" />
+                  Escala de Valoración
+                </Label>
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={open}
+                      className={`w-full justify-between transition-colors ${
+                        errors.VALORACION_ID ? 'border-destructive focus:ring-destructive' : ''
+                      }`}
+                    >
+                      {formData.VALORACION_ID
+                        ? valoraciones.find((valoracion) => valoracion.ID?.toString() === formData.VALORACION_ID)?.ETIQUETA
+                        : "Seleccione una valoración..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0 max-h-60 overflow-y-auto">
+                    <Command>
+                      <CommandInput placeholder="Buscar valoración..." />
+                      <CommandEmpty>No se encontraron valoraciones.</CommandEmpty>
+                      <CommandGroup>
+                        {valoraciones.map((valoracion) => (
+                          <CommandItem
+                            key={valoracion.ID}
+                            value={valoracion.ETIQUETA}
+                            onSelect={() => {
+                              handleInputChange("VALORACION_ID", valoracion.ID?.toString() || "");
+                              setOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${
+                                formData.VALORACION_ID === valoracion.ID?.toString()
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              }`}
+                            />
+                            <div className="flex flex-col">
+                              <span className="font-medium">{valoracion.ETIQUETA}</span>
+                              {valoracion.DESCRIPCION && (
+                                <span className="text-xs text-muted-foreground truncate max-w-xs">
+                                  {valoracion.DESCRIPCION}
+                                </span>
+                              )}
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                {errors.VALORACION_ID && (
+                  <div className="flex items-center gap-1 text-sm text-destructive">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.VALORACION_ID}
+                  </div>
+                )}
+              </div>
 
-          <div className="space-y-2">
-            <Label>Puntaje</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={formData.PUNTAJE}
-              onChange={(e) => setFormData({ ...formData, PUNTAJE: e.target.value })}
-              required
-            />
-          </div>
+              {/* Campo Puntaje */}
+              <div className="space-y-3">
+                <Label htmlFor="puntaje" className="text-sm font-medium flex items-center gap-2">
+                  <Award className="h-4 w-4 text-primary" />
+                  Puntaje
+                </Label>
+                <Input
+                  id="puntaje"
+                  type="number"
+                  step="0.01"
+                  value={formData.PUNTAJE}
+                  onChange={(e) => handleInputChange("PUNTAJE", e.target.value)}
+                  placeholder="Ej. 5, 4.5, 3.2..."
+                  className={`transition-colors ${
+                    errors.PUNTAJE ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }`}
+                  required
+                />
+                {errors.PUNTAJE && (
+                  <div className="flex items-center gap-1 text-sm text-destructive">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.PUNTAJE}
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground">
+                  Valor numérico que se asignará a esta valoración
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label>Orden</Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={formData.ORDEN}
-              onChange={(e) => setFormData({ ...formData, ORDEN: e.target.value })}
-              required
-            />
-          </div>
+              {/* Campo Orden */}
+              <div className="space-y-3">
+                <Label htmlFor="orden" className="text-sm font-medium flex items-center gap-2">
+                  <Hash className="h-4 w-4 text-primary" />
+                  Orden de Presentación
+                </Label>
+                <Input
+                  id="orden"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={formData.ORDEN}
+                  onChange={(e) => handleInputChange("ORDEN", e.target.value)}
+                  placeholder="Ej. 1, 2, 3, 1.5..."
+                  className={`transition-colors ${
+                    errors.ORDEN ? 'border-destructive focus-visible:ring-destructive' : ''
+                  }`}
+                  required
+                />
+                {errors.ORDEN && (
+                  <div className="flex items-center gap-1 text-sm text-destructive">
+                    <AlertCircle className="h-3 w-3" />
+                    {errors.ORDEN}
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground">
+                  Define el orden en que aparecerá esta valoración durante la evaluación
+                </div>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button type="submit">
-              {configuracion?.ID ? "Actualizar" : "Crear"}
-            </Button>
-          </div>
-        </form>
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0 pt-2">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onClose}
+            className="w-full sm:w-auto"
+            disabled={isLoading}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            type="submit" 
+            onClick={handleSubmit}
+            className="w-full sm:w-auto"
+            disabled={isLoading || valoraciones.length === 0}
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                {configuracion?.ID ? "Actualizando..." : "Creando..."}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {configuracion?.ID ? <Edit3 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {configuracion?.ID ? "Actualizar" : "Crear"}
+              </div>
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

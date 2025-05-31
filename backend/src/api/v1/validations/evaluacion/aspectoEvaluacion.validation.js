@@ -6,9 +6,9 @@ const aspectoEvaluacionSchema = Joi.object({
   .max(500)
   .required()
   .messages({
-    'string.empty': 'La descripción es obligatoria.',
-    'string.min': 'La descripción debe tener al menos 10 caracteres.',
-    'string.max': 'La descripción no puede tener más de 500 caracteres.',
+    'string.empty': 'La etiqueta es obligatoria.',
+    'string.min': 'La etiqueta debe tener al menos 3 caracteres.',
+    'string.max': 'La etiqueta no puede tener más de 50 caracteres.',
   }),
   DESCRIPCION: Joi.string()
     .min(10)
@@ -16,8 +16,8 @@ const aspectoEvaluacionSchema = Joi.object({
     .required()
     .messages({
       'string.empty': 'La descripción es obligatoria.',
-      'string.min': 'La descripción debe tener al menos 10 caracteres.',
-      'string.max': 'La descripción no puede tener más de 500 caracteres.',
+      'string.min': 'La descripción debe tener al menos 6 caracteres.',
+      'string.max': 'La descripción no puede tener más de 100 caracteres.',
     }),
 });
 
