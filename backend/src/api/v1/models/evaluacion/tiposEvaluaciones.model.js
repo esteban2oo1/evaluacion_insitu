@@ -5,54 +5,53 @@ const TiposEvaluacion = {
   getConfiguracionDetalles: async (configuracionId, roles) => {
     try {
       const pool = getPool();
-
       let query = `
         SELECT ce.ID, te.NOMBRE AS NOMBRE, ce.FECHA_INICIO, ce.FECHA_FIN, ce.ACTIVO 
         FROM CONFIGURACION_EVALUACION ce 
         JOIN TIPOS_EVALUACIONES te ON ce.TIPO_EVALUACION_ID = te.ID 
         WHERE ce.ID = ?`;
-
       const params = [configuracionId];
-
+      
       // Si el rol incluye 'Estudiante', solo traer configuraciones activas
       if (roles.includes('Estudiante')) {
         query += " AND ce.ACTIVO = TRUE";
       }
-
+      
       const [configuracion] = await pool.query(query, params);
-
       if (configuracion.length === 0) {
         throw new Error('Configuración no encontrada');
       }
-
-      // Obtener los aspectos relacionados con la configuración
+      
+      // Obtener los aspectos relacionados con la configuración a través de configuracion_aspecto
       query = `
         SELECT ca.ID, ca.ASPECTO_ID, ae.ETIQUETA, ae.DESCRIPCION, ca.ORDEN, ca.ACTIVO 
         FROM CONFIGURACION_ASPECTO ca 
         JOIN ASPECTOS_EVALUACION ae ON ca.ASPECTO_ID = ae.ID 
         WHERE ca.CONFIGURACION_EVALUACION_ID = ?`;
-
+      
       // Filtrar los aspectos solo si el rol incluye 'Estudiante'
       if (roles.includes('Estudiante')) {
         query += " AND ca.ACTIVO = TRUE";
       }
-
+      query += " ORDER BY ca.ORDEN";
+      
       const [aspectos] = await pool.query(query, [configuracionId]);
-
-      // Obtener las valoraciones relacionadas con la configuración
+      
+      // Obtener las valoraciones relacionadas con la configuración a través de configuracion_valoracion
       query = `
         SELECT cv.ID, cv.VALORACION_ID, ev.ETIQUETA, ev.VALOR, cv.PUNTAJE, cv.ORDEN, cv.ACTIVO 
         FROM CONFIGURACION_VALORACION cv 
         JOIN ESCALA_VALORACION ev ON cv.VALORACION_ID = ev.ID 
         WHERE cv.CONFIGURACION_EVALUACION_ID = ?`;
-
+      
       // Filtrar las valoraciones solo si el rol incluye 'Estudiante'
       if (roles.includes('Estudiante')) {
         query += " AND cv.ACTIVO = TRUE";
       }
-
+      query += " ORDER BY cv.ORDEN";
+      
       const [valoraciones] = await pool.query(query, [configuracionId]);
-
+      
       return {
         configuracion: configuracion[0],
         aspectos,
@@ -62,7 +61,6 @@ const TiposEvaluacion = {
       throw error;
     }
   },
-
 
   updateEstado: async (id, activo) => {
     try {

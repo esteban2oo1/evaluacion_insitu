@@ -1,6 +1,6 @@
 const { getPool } = require('../../../../db');
 
-const getDashboardStats = async () => {
+const getDashboardStats = async (idConfiguracion) => {
     const pool = await getPool();
     const query = `
         SELECT 
@@ -23,16 +23,17 @@ const getDashboardStats = async () => {
                 SELECT COUNT(DISTINCT ID_DOCENTE)
                 FROM (
                     SELECT 
-                        va.ID_DOCENTE,
-                        COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)) AS total,
-                        COUNT(DISTINCT CASE WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) END) AS completadas
-                    FROM vista_academica_insitus va
-                    LEFT JOIN evaluaciones e 
-                        ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE 
-                        AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
-                    LEFT JOIN evaluacion_detalle ed 
-                        ON e.ID = ed.EVALUACION_ID
-                    GROUP BY va.ID_DOCENTE
+                        va2.ID_DOCENTE,
+                        COUNT(DISTINCT CONCAT(va2.ID_ESTUDIANTE, '-', va2.COD_ASIGNATURA)) AS total,
+                        COUNT(DISTINCT CASE WHEN ed2.ID IS NOT NULL THEN CONCAT(va2.ID_ESTUDIANTE, '-', va2.COD_ASIGNATURA) END) AS completadas
+                    FROM vista_academica_insitus va2
+                    LEFT JOIN evaluaciones e2 
+                        ON va2.ID_ESTUDIANTE = e2.DOCUMENTO_ESTUDIANTE 
+                        AND va2.COD_ASIGNATURA = e2.CODIGO_MATERIA
+                        AND e2.ID_CONFIGURACION = ?
+                    LEFT JOIN evaluacion_detalle ed2 
+                        ON e2.ID = ed2.EVALUACION_ID
+                    GROUP BY va2.ID_DOCENTE
                     HAVING total = completadas
                 ) docentes_completos
             ) AS docentes_evaluados,
@@ -45,16 +46,17 @@ const getDashboardStats = async () => {
                     SELECT COUNT(DISTINCT ID_DOCENTE)
                     FROM (
                         SELECT 
-                            va.ID_DOCENTE,
-                            COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)) AS total,
-                            COUNT(DISTINCT CASE WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) END) AS completadas
-                        FROM vista_academica_insitus va
-                        LEFT JOIN evaluaciones e 
-                            ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE 
-                            AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
-                        LEFT JOIN evaluacion_detalle ed 
-                            ON e.ID = ed.EVALUACION_ID
-                        GROUP BY va.ID_DOCENTE
+                            va3.ID_DOCENTE,
+                            COUNT(DISTINCT CONCAT(va3.ID_ESTUDIANTE, '-', va3.COD_ASIGNATURA)) AS total,
+                            COUNT(DISTINCT CASE WHEN ed3.ID IS NOT NULL THEN CONCAT(va3.ID_ESTUDIANTE, '-', va3.COD_ASIGNATURA) END) AS completadas
+                        FROM vista_academica_insitus va3
+                        LEFT JOIN evaluaciones e3 
+                            ON va3.ID_ESTUDIANTE = e3.DOCUMENTO_ESTUDIANTE 
+                            AND va3.COD_ASIGNATURA = e3.CODIGO_MATERIA
+                            AND e3.ID_CONFIGURACION = ?
+                        LEFT JOIN evaluacion_detalle ed3 
+                            ON e3.ID = ed3.EVALUACION_ID
+                        GROUP BY va3.ID_DOCENTE
                         HAVING total = completadas
                     ) docentes_completos
                 )
@@ -65,11 +67,12 @@ const getDashboardStats = async () => {
         LEFT JOIN evaluaciones e 
             ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE 
             AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
+            AND e.ID_CONFIGURACION = ?
         LEFT JOIN evaluacion_detalle ed 
             ON e.ID = ed.EVALUACION_ID;
     `;
 
-    const [stats] = await pool.query(query);
+    const [stats] = await pool.query(query, [idConfiguracion, idConfiguracion, idConfiguracion]);
     return stats;
 };
 
@@ -77,22 +80,24 @@ const getAspectosPromedio = async () => {
     const pool = await getPool();
     const query = `
         SELECT 
-            a.ETIQUETA AS ASPECTO, 
-            ROUND(AVG(cv.PUNTAJE), 2) AS PROMEDIO_GENERAL
-        FROM vista_academica_insitus va
-        JOIN evaluaciones e
-            ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE
-            AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
-        JOIN evaluacion_detalle ed
-            ON e.ID = ed.EVALUACION_ID
-        JOIN aspectos_evaluacion a
-            ON ed.ASPECTO_ID = a.ID
-        JOIN configuracion_valoracion cv
-            ON ed.VALORACION_ID = cv.VALORACION_ID
-        GROUP BY 
-            a.ID, a.ETIQUETA
-        ORDER BY 
-            a.ID;
+        a.ETIQUETA AS ASPECTO, 
+        ROUND(AVG(cv.PUNTAJE), 2) AS PROMEDIO_GENERAL
+    FROM vista_academica_insitus va
+    JOIN evaluaciones e
+        ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE
+        AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
+    JOIN evaluacion_detalle ed
+        ON e.ID = ed.EVALUACION_ID
+    JOIN configuracion_aspecto ca
+        ON ed.ASPECTO_ID = ca.ASPECTO_ID  
+    JOIN aspectos_evaluacion a
+        ON ca.ASPECTO_ID = a.ID
+    JOIN configuracion_valoracion cv
+        ON ed.VALORACION_ID = cv.VALORACION_ID
+    GROUP BY 
+        a.ID, a.ETIQUETA
+    ORDER BY 
+        a.ID;
     `;
 
     const [aspectos] = await pool.query(query);

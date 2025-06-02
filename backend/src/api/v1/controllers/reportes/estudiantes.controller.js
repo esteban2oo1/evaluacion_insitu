@@ -2,8 +2,9 @@ const { getEstudianteEvaluaciones, getEstudiantesEvaluaciones, getEstudiantesByD
 
 const getEstudianteEvaluacionesController = async (req, res) => {
     try {
-        const { idEstudiante } = req.params;
-        const stats = await getEstudianteEvaluaciones(idEstudiante);
+        const { idEstudiante, idConfiguracion } = req.params;
+        const stats = await getEstudianteEvaluaciones(idEstudiante, idConfiguracion);
+        console.log(`Estadísticas obtenidas para el estudiante: ${idEstudiante} con configuración: ${idConfiguracion}`, stats);
         res.json(stats);
     } catch (error) {
         console.error('Error en getEstudianteEvaluacionesController:', error);

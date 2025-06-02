@@ -7,7 +7,7 @@ const {
 } = require('../../controllers/reportes/estudiantes.controller');
 
 // Obtener estadísticas de evaluaciones de un estudiante específico
-router.get('/:idEstudiante', getEstudianteEvaluacionesController);
+router.get('/:idEstudiante/configuracion/:idConfiguracion', getEstudianteEvaluacionesController);
 
 // Obtener lista de todos los estudiantes con sus estadísticas de evaluación
 router.get('/', getEstudiantesEvaluacionesController);

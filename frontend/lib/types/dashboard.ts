@@ -16,6 +16,7 @@ export interface DocenteRanking {
 }
 
 export interface DashboardStats {
+  idConfiguracion: number;
   total_estudiantes: number;
   total_evaluaciones: number;
   evaluaciones_completadas: number;

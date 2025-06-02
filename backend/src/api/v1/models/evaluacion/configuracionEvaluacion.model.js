@@ -2,25 +2,35 @@
 const { getPool } = require('../../../../db');
 
 const ConfiguracionEvaluacion = {
-  getAllConfiguraciones: async () => {
+  getAllConfiguraciones: async (roles) => { 
     try {
       const pool = getPool();
-      const [rows] = await pool.query(`SELECT 
-        CE.ID, 
-        CE.TIPO_EVALUACION_ID, 
-        TE.NOMBRE as TIPO_EVALUACION_NOMBRE,
-        TE.DESCRIPCION as TIPO_EVALUACION_DESCRIPCION,
-        CE.FECHA_INICIO, 
-        CE.FECHA_FIN, 
-        CE.ACTIVO 
-      FROM CONFIGURACION_EVALUACION CE
-      JOIN TIPOS_EVALUACIONES TE ON CE.TIPO_EVALUACION_ID = TE.ID
-    `);
+      
+      let query = `
+        SELECT 
+          CE.ID, 
+          CE.TIPO_EVALUACION_ID, 
+          TE.NOMBRE AS TIPO_EVALUACION_NOMBRE,
+          TE.DESCRIPCION AS TIPO_EVALUACION_DESCRIPCION,
+          CE.FECHA_INICIO, 
+          CE.FECHA_FIN, 
+          CE.ACTIVO 
+        FROM CONFIGURACION_EVALUACION CE
+        JOIN TIPOS_EVALUACIONES TE ON CE.TIPO_EVALUACION_ID = TE.ID
+      `;
+
+      // Si el usuario es estudiante, solo mostrar configuraciones activas
+      if (roles.includes('Estudiante') && !roles.includes('Admin')) {
+        query += " WHERE CE.ACTIVO = TRUE";
+      }
+
+      const [rows] = await pool.query(query);
       return rows;
     } catch (error) {
       throw error;
     }
   },
+
 
   getConfiguracionById: async (id) => {
     try {

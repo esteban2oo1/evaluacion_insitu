@@ -2,7 +2,8 @@ const dashboardModel = require('../../models/reportes/dashboard.model');
 
 const getDashboardStats = async (req, res) => {
     try {
-        const stats = await dashboardModel.getDashboardStats();
+        const { idConfiguracion } = req.params;
+        const stats = await dashboardModel.getDashboardStats(idConfiguracion);
         res.json(stats);
     } catch (error) {
         console.error('Error al obtener estadísticas del dashboard:', error);

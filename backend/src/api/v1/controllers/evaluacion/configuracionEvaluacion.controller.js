@@ -6,7 +6,9 @@ const moment = require('moment');
 
 const getConfiguraciones = async (req, res, next) => {
   try {
-    const configuraciones = await ConfiguracionEvaluacionModel.getAllConfiguraciones();
+    const roles = req.user.roles;
+
+    const configuraciones = await ConfiguracionEvaluacionModel.getAllConfiguraciones(roles);
     return successResponse(res, { 
       code: 200, 
       message: MESSAGES.GENERAL.FETCH_SUCCESS, 

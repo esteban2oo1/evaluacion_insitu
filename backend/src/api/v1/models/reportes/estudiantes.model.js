@@ -1,6 +1,7 @@
 const { getPool } = require('../../../../db');
 
-const getEstudianteEvaluaciones = async (idEstudiante) => {
+const getEstudianteEvaluaciones = async (idEstudiante, idConfiguracion) => {
+    console.log(`Obteniendo estadísticas de evaluaciones para el estudiante: ${idEstudiante} con configuración: ${idConfiguracion}`);
     const pool = await getPool();
     const query = `
         SELECT 
@@ -16,12 +17,13 @@ const getEstudianteEvaluaciones = async (idEstudiante) => {
         LEFT JOIN evaluaciones e 
             ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE 
             AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
+            AND e.ID_CONFIGURACION = ?
         LEFT JOIN evaluacion_detalle ed 
             ON e.ID = ed.EVALUACION_ID
         WHERE va.ID_ESTUDIANTE = ?;
     `;
 
-    const [stats] = await pool.query(query, [idEstudiante]);
+    const [stats] = await pool.query(query, [ idConfiguracion, idEstudiante ]);
     return stats;
 };
 

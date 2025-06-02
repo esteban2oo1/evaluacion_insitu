@@ -59,23 +59,6 @@ const login = async (req, res, next) => {
       { expiresIn: '1h' }
     );
 
-    // Ejecutar lógica adicional en segundo plano si el usuario es "Estudiante"
-    if (user.role_name === 'Estudiante') {
-      console.log('Ejecutando createEvaluacionU en segundo plano para el rol Estudiante');
-      const { createEvaluacionU } = require('../evaluacion/evaluaciones.controller');
-      const reqClone = { ...req };
-      reqClone.user = { userId: user.user_id, username: user.user_username, roleName: user.role_name };
-      reqClone.body.tipoEvaluacionId = 1; 
-
-      setImmediate(async () => {
-        try {
-          await createEvaluacionU(reqClone, res, () => {});
-        } catch (error) {
-          console.error('Error al ejecutar createEvaluacionU en segundo plano:', error);
-        }
-      });
-    }
-
     // Responder con éxito
     return successResponse(res, {
       code: 200,

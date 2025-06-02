@@ -11,6 +11,13 @@
  *   get:
  *     summary: Obtiene estadísticas generales del dashboard
  *     tags: [Dashboard]
+ *     parameters:
+ *       - in: query
+ *         name: idConfiguracion
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de configuración para filtrar las estadísticas
  *     responses:
  *       200:
  *         description: Estadísticas obtenidas exitosamente

@@ -9,31 +9,74 @@ import { Download } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { dashboardService } from "@/lib/services/dashboard"
 import { DashboardResponse } from "@/lib/types/dashboard"
+import { configuracionEvaluacionService, tiposEvaluacionesService } from "@/lib/services/evaluacionInsitu";
+import { TipoEvaluacion, ConfiguracionEvaluacion, EstadoActivo } from "@/lib/types/evaluacionInsitu";
+import ConfiguracionSelector from "@/app/admin/components/ConfiguracionSelector";
 
 export default function AdminDashboard() {
   const { toast } = useToast()
+  const [configuraciones, setConfiguraciones] = useState<ConfiguracionEvaluacion[]>([]);
+  const [tiposEvaluacion, setTiposEvaluacion] = useState<TipoEvaluacion[]>([]);
+  const [configuracionSeleccionada, setConfiguracionSeleccionada] = useState<number | null>(null);
   const [dashboardData, setDashboardData] = useState<DashboardResponse | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const cargarDatosIniciales = async () => {
+      try {
+        const [configsData, tiposData] = await Promise.all([
+          configuracionEvaluacionService.getAll(),
+          tiposEvaluacionesService.getAll()
+        ]);
+        
+        setConfiguraciones(configsData);
+        setTiposEvaluacion(tiposData);
+        
+        // Auto-seleccionar la primera configuración activa
+        const configuracionActiva = configsData.find(config => config.ACTIVO);
+        if (configuracionActiva) {
+          setConfiguracionSeleccionada(configuracionActiva.ID);
+        }
+      } catch (error) {
+        console.error("Error cargando datos iniciales:", error);
+      }
+    };
+
+    cargarDatosIniciales();
+  }, []);
+
+  useEffect(() => {
     const cargarDashboard = async () => {
       try {
-        const data = await dashboardService.getDashboardData()
-        setDashboardData(data)
+        // Si hay una configuración seleccionada, pasarla como parámetro
+        if (configuracionSeleccionada) {
+          const data = await dashboardService.getDashboardData(configuracionSeleccionada);
+          setDashboardData(data);
+          console.log('Datos del dashboard cargados:', data, configuracionSeleccionada);
+        } else {
+          // Si no hay configuración seleccionada, no llamar a la API o hacer otra acción.
+          setDashboardData(null);  // Cambiar esto de `[]` a `null`
+          console.log('No se seleccionó configuración, no se cargaron datos');
+        }
       } catch (error) {
-        console.error('Error al cargar el dashboard:', error)
+        console.error('Error al cargar el dashboard:', error);
         toast({
           title: "Error",
           description: "No se pudieron cargar los datos del dashboard",
           variant: "destructive",
-        })
+        });
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    cargarDashboard()
-  }, [toast])
+    cargarDashboard();
+  }, [toast, configuracionSeleccionada]);
+
+  const handleConfiguracionChange = (idConfiguracion: number) => {
+    setConfiguracionSeleccionada(idConfiguracion);
+    setLoading(true); // Mostrar loading mientras se cargan los nuevos datos
+  };
 
   if (loading) {
     return (
@@ -87,6 +130,17 @@ export default function AdminDashboard() {
       </header>
 
       <main className="p-6">
+        {/* Selector de Configuración */}
+        <div className="mb-6">
+          <ConfiguracionSelector
+            configuraciones={configuraciones}
+            tiposEvaluacion={tiposEvaluacion}
+            configuracionSeleccionada={configuracionSeleccionada}
+            onConfiguracionChange={handleConfiguracionChange}
+          />
+        </div>
+
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <Card>
             <CardHeader className="pb-2">
@@ -141,6 +195,7 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
+        {/* Ranking y Mejores/Peores */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <Card>
             <CardHeader>
@@ -268,7 +323,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* ✅ Aspectos Evaluados con color dinámico */}
+        {/* Aspectos Evaluados */}
         <Card>
           <CardHeader>
             <CardTitle className="text-gray-900">Aspectos Evaluados</CardTitle>

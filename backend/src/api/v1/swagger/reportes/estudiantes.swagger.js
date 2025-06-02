@@ -7,7 +7,7 @@
 
 /**
  * @swagger
- * /reportes/estudiantes/{idEstudiante}:
+ * /reportes/estudiantes/{idEstudiante}/configuracion/{idConfiguracion}:
  *   get:
  *     summary: Obtiene estadísticas de evaluaciones de un estudiante específico
  *     tags: [Reportes Estudiantes]
@@ -17,7 +17,13 @@
  *         required: true
  *         schema:
  *           type: string
- *         description: ID del estudiante
+ *           description: ID del estudiante
+ *       - in: path
+ *         name: idConfiguracion
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           description: ID de la configuración
  *     responses:
  *       200:
  *         description: Estadísticas del estudiante

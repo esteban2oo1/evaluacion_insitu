@@ -22,9 +22,6 @@ const VistaEstudiante = {
           CODIGO_ESTUDIANTE,
           COD_PROGRAMA,
           DOBLE_PROGRAMA,
-          SEMESTRE_INGRESO,
-          PERIODO_INGRESO,
-          SEMESTRE_CREDITOS,
           PRIMER_APELLIDO,
           SEGUNDO_APELLIDO,
           PRIMER_NOMBRE,
@@ -44,9 +41,7 @@ const VistaEstudiante = {
           NUMERO_CONTACTO,
           ESTADO_MATRICULA,
           ESTADO_ACADEMICO,
-          PROMEDIO_ACUMULADO,
-          CREDITOS_CURSADOS,
-          CREDITOS_PROGRAMA
+          PROMEDIO_ACUMULADO        
         FROM VISTA_ESTUDIANTE
         WHERE DOCUMENTO_ESTUDIANTE = ?;
       `, [documentoEstudiante]);

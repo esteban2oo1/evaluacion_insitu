@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { tiposEvaluacionesService } from "@/lib/services/evaluacionInsitu/tiposEvaluaciones";
 import { createDetallesEvaluacion } from "@/lib/services/evaluacionInsitu/evaluacionDetalle";
+import { ModalConfirmacionEvaluacion } from "@/app/estudiante/components/ModalConfirmacionEvaluacion";
 import type {
   ConfiguracionResponse,
 } from "@/lib/types/evaluacionInsitu";
@@ -34,6 +35,7 @@ export default function EvaluarDocentePage({
   const [config, setConfig] = useState<ConfiguracionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [openAspecto, setOpenAspecto] = useState<number | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Desenrolla params usando React.use()
   const unwrappedParams = React.use(params);
@@ -59,7 +61,6 @@ export default function EvaluarDocentePage({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
 
     if (!config) return;
 
@@ -74,39 +75,60 @@ export default function EvaluarDocentePage({
         description: "Por favor, evalúa todos los aspectos antes de enviar.",
         variant: "destructive",
       });
-      setIsSubmitting(false);
       return;
     }
 
-    // Construir el payload para el bulk
-    const bulkPayload = {
-      evaluacionId: Number(evaluationData.id_evaluacion), 
-      comentarioGeneral: comentarios["COMENTARIO_GENERAL"] || "",
-      detalles: config.aspectos.map((aspecto) => ({
-        aspectoId: aspecto.ID,
-        valoracionId: Number(evaluaciones[aspecto.ID]),
-        comentario: comentarios[aspecto.ID] || "",
-      })),
-    };
+    // Mostrar modal de confirmación
+    setShowConfirmModal(true);
+  };
 
-    try {
-      console.log("Payload a enviar:", bulkPayload);
+  const handleConfirmSubmit = async () => {
+  if (!config) return;
 
-      await createDetallesEvaluacion(bulkPayload);
-      toast({
-        title: "Evaluación enviada",
-        description: "Tu evaluación ha sido registrada correctamente.",
-      });
-      router.push("/estudiante/dashboard");
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "No se pudo enviar la evaluación.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
+  const evaluationData = {
+    id_evaluacion: searchParams.get("id") || "",
+    programa: searchParams.get("programa") || "",
+    nombreDocente: searchParams.get("docente") || "",
+    asignatura: searchParams.get("materia") || "",
+    semestre: searchParams.get("semestre") || "",
+  };
+
+  // Construir el payload para el bulk
+  const bulkPayload = {
+    evaluacionId: Number(evaluationData.id_evaluacion), 
+    comentarioGeneral: comentarios["COMENTARIO_GENERAL"] || "",
+    detalles: config.aspectos.map((aspecto) => ({
+      aspectoId: aspecto.ID,
+      valoracionId: Number(evaluaciones[aspecto.ID]),
+      comentario: comentarios[aspecto.ID] || "",
+    })),
+  };
+
+  console.log("Payload a enviar:", bulkPayload);
+  
+  try {
+    await createDetallesEvaluacion(bulkPayload);
+    
+    // Usar el ID de configuración para redirigir al dashboard correcto
+    router.push(`/estudiante/dashboard/${id}`);
+    console.log("Evaluación enviada exitosamente para el ID:", id);
+    // Opcional: mostrar toast de éxito
+    toast({
+      title: "Evaluación enviada",
+      description: "Tu evaluación ha sido enviada exitosamente.",
+    });
+  } catch (error) {
+    // Manejar errores
+    toast({
+      title: "Error",
+      description: "Hubo un problema al enviar la evaluación. Inténtalo de nuevo.",
+      variant: "destructive",
+    });
+  }
+};
+
+  const handleCloseModal = () => {
+    setShowConfirmModal(false);
   };
 
   const handleRadioChange = (aspectoId: number, value: string) => {
@@ -286,7 +308,7 @@ export default function EvaluarDocentePage({
                                 className="flex flex-col items-center"
                               >
                                 <RadioGroupItem
-                                  value={valoracion.ID.toString()} // <-- Aquí debe ser el ID como string
+                                  value={valoracion.ID.toString()}
                                   id={`${aspecto.ID}-${valoracion.ID}`}
                                   className="h-7 w-7 rounded-full border-gray-300 hover:bg-blue-100 transition-all"
                                 />
@@ -385,6 +407,15 @@ export default function EvaluarDocentePage({
             </form>
           </CardContent>
         </Card>
+
+        {/* Modal de Confirmación */}
+        <ModalConfirmacionEvaluacion
+          isOpen={showConfirmModal}
+          onClose={handleCloseModal}
+          onConfirm={handleConfirmSubmit}
+          title="¿Confirmar evaluación?"
+          description={`Estás a punto de enviar tu evaluación para ${evaluationData.asignatura} del docente ${evaluationData.nombreDocente}.`}
+        />
       </div>
     </div>
   );

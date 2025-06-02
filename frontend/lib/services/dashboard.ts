@@ -2,7 +2,7 @@ import api from "@/lib/api"
 import { DashboardResponse, DocenteRanking, AspectoEvaluacion } from "@/lib/types/dashboard"
 
 export const dashboardService = {
-  async getDashboardData(): Promise<DashboardResponse> {
+  async getDashboardData(configuracionId?: number): Promise<DashboardResponse> {
     try {
       const [statsResponse, aspectosResponse, podioResponse] = await Promise.all([
         api.get('/dashboard/stats'),

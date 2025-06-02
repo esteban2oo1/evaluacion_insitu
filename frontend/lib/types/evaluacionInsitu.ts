@@ -15,6 +15,8 @@ export interface ConfiguracionAspecto {
 export interface ConfiguracionEvaluacion {
   ID: number;
   TIPO_EVALUACION_ID: number;
+  TIPO_EVALUACION_NOMBRE: string;
+  TIPO_EVALUACION_DESCRIPCION: string;
   FECHA_INICIO: string;
   FECHA_FIN: string;
   ACTIVO: boolean;
@@ -59,6 +61,7 @@ export interface Evaluacion {
   ID_CONFIGURACION: number;
   SEMESTRE_PREDOMINANTE: string;
   PROGRAMA_PREDOMINANTE: string;
+  ACTIVO: boolean;
 }
 
 export interface DetalleEvaluacionRequest {
@@ -81,4 +84,65 @@ export interface BulkEvaluacionRequest {
 export interface EstadoActivo {
   id: number;
   activo: number;
+}
+
+// -----------------------------------
+export interface BulkEvaluciones {
+  tipoEvaluacionId: number;
+}
+
+// Respuesta de la API al crear evaluaciones
+export interface BulkEvaluacionesResponse {
+  success: boolean;
+  message: string;
+  data?: BulkEvaluacionesData;
+  error?: string | null;
+}
+
+// Datos contenidos en la respuesta exitosa
+export interface BulkEvaluacionesData {
+  total: number;
+  evaluaciones: EvaluacionCreada[];
+  aspectos: AspectoResponse[];
+  valoraciones: ValoracionResponse[];
+}
+
+// Estructura de evaluación creada
+export interface EvaluacionCreada {
+  id: number;
+  materia: {
+    codigo: number;
+    nombre: string;
+  };
+  docente: {
+    documento: string;
+    nombre: string;
+  };
+  estudiante: {
+    documento: string;
+  };
+  configuracion: {
+    id: number;
+  };
+}
+
+// Aspecto tal como lo devuelve la API
+export interface AspectoResponse {
+  ID: number;
+  ASPECTO_ID: number;
+  ETIQUETA: string;
+  DESCRIPCION: string;
+  ORDEN: string;
+  ACTIVO: number;
+}
+
+// Valoración tal como la devuelve la API
+export interface ValoracionResponse {
+  ID: number;
+  VALORACION_ID: number;
+  ETIQUETA: string;
+  VALOR: string;
+  PUNTAJE: string;
+  ORDEN: string;
+  ACTIVO: number;
 }

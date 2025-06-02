@@ -84,8 +84,64 @@ const Evaluaciones = {
       throw error;
     }
   },
-  
 
+  getEvaluacionesByEstudianteByConfiguracion: async (documentoEstudiante, configuracionId) => {
+    try {
+      const pool = getPool();
+      const query = `
+        WITH SEMESTRE_PREDOMINANTE AS (
+            SELECT 
+                COD_ASIGNATURA,
+                ID_DOCENTE,
+                SEMESTRE AS SEMESTRE_PREDOMINANTE,
+                ROW_NUMBER() OVER (PARTITION BY COD_ASIGNATURA, ID_DOCENTE ORDER BY COUNT(*) DESC) AS rn
+            FROM vista_academica_insitus
+            GROUP BY COD_ASIGNATURA, ID_DOCENTE, SEMESTRE
+        ),
+        PROGRAMA_PREDOMINANTE AS (
+            SELECT 
+                COD_ASIGNATURA,
+                ID_DOCENTE,
+                NOM_PROGRAMA AS PROGRAMA_PREDOMINANTE,
+                ROW_NUMBER() OVER (PARTITION BY COD_ASIGNATURA, ID_DOCENTE ORDER BY COUNT(*) DESC) AS rn
+            FROM vista_academica_insitus
+            GROUP BY COD_ASIGNATURA, ID_DOCENTE, NOM_PROGRAMA
+        )
+    
+        SELECT DISTINCT
+            e.ID,
+            e.DOCUMENTO_ESTUDIANTE,
+            e.DOCUMENTO_DOCENTE,
+            vai.DOCENTE,
+            vai.ASIGNATURA,
+            e.CODIGO_MATERIA,
+            e.ID_CONFIGURACION,
+            sp.SEMESTRE_PREDOMINANTE,
+            pp.PROGRAMA_PREDOMINANTE,
+            CASE 
+                WHEN ed.ID IS NOT NULL THEN 1 
+                ELSE 0 
+            END AS ACTIVO
+        FROM EVALUACIONES e
+        LEFT JOIN vista_academica_insitus vai 
+            ON e.DOCUMENTO_DOCENTE = vai.ID_DOCENTE AND e.CODIGO_MATERIA = vai.COD_ASIGNATURA
+        LEFT JOIN SEMESTRE_PREDOMINANTE sp 
+            ON e.CODIGO_MATERIA = sp.COD_ASIGNATURA AND e.DOCUMENTO_DOCENTE = sp.ID_DOCENTE AND sp.rn = 1
+        LEFT JOIN PROGRAMA_PREDOMINANTE pp 
+            ON e.CODIGO_MATERIA = pp.COD_ASIGNATURA AND e.DOCUMENTO_DOCENTE = pp.ID_DOCENTE AND pp.rn = 1
+        LEFT JOIN evaluacion_detalle ed 
+            ON e.ID = ed.EVALUACION_ID
+        WHERE e.DOCUMENTO_ESTUDIANTE = ? AND e.ID_CONFIGURACION = ?;
+      `;
+      
+      const [rows] = await pool.query(query, [documentoEstudiante, configuracionId]);
+      return rows;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  
   getEvaluacionesByDocente: async (documentoDocente) => {
     try {
       const pool = getPool();

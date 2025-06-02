@@ -15,7 +15,7 @@ const validate = require('../../middlewares/validate');
 const router = express.Router();
 
 router.patch('/:id/estado', updateEstadoConfiguracion);
-router.get('/', getConfiguraciones);
+router.get('/', verifyToken, checkRole(['Admin', 'Estudiante']), getConfiguraciones);
 router.post('/', verifyToken, checkRole(['Admin']), validate(configuracionEvaluacionSchema), createConfiguracion);
 router.get('/:id', verifyToken, checkRole(['Admin']), getConfiguracionById);
 router.put('/:id', verifyToken, checkRole(['Admin']), validate(configuracionEvaluacionSchema), updateConfiguracion);

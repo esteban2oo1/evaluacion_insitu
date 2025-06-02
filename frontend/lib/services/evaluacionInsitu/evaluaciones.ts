@@ -1,41 +1,48 @@
-import api from '../../api';
-import { Evaluacion } from '../../types/evaluacionInsitu';
+import api from '@/lib/api';
+import { Evaluacion, BulkEvaluciones, BulkEvaluacionesResponse } from '@/lib/types/evaluacionInsitu';
 
-export const getEvaluaciones = async (): Promise<Evaluacion[]> => {
-  const response = await api.get('/evaluaciones');
-  return response.data;
-};
+export const evaluacionService = {
+  getAll: async (): Promise<Evaluacion[]> => {
+    const response = await api.get('/evaluaciones');
+    return response.data.data;
+  },
 
-export const getEvaluacionById = async (id: number): Promise<Evaluacion> => {
-  const response = await api.get(`/evaluaciones/${id}`);
-  return response.data;
-};
+  getById: async (id: number): Promise<Evaluacion> => {
+    const response = await api.get(`/evaluaciones/${id}`);
+    return response.data.data;
+  },
 
-export const createEvaluacion = async (data: Partial<Evaluacion>): Promise<Evaluacion> => {
-  const response = await api.post('/evaluaciones', data);
-  return response.data;
-};
+  create: async (data: Partial<Evaluacion>): Promise<Evaluacion> => {
+    const response = await api.post('/evaluaciones', data);
+    return response.data.data;
+  },
 
-export const updateEvaluacion = async (id: number, data: Partial<Evaluacion>): Promise<Evaluacion> => {
-  const response = await api.put(`/evaluaciones/${id}`, data);
-  return response.data;
-};
+  update: async (id: number, data: Partial<Evaluacion>): Promise<Evaluacion> => {
+    const response = await api.put(`/evaluaciones/${id}`, data);
+    return response.data.data;
+  },
 
-export const deleteEvaluacion = async (id: number): Promise<void> => {
-  await api.delete(`/evaluaciones/${id}`);
-};
+  delete: async (id: number): Promise<void> => {
+    await api.delete(`/evaluaciones/${id}`);
+  },
 
-export const createEvaluacionU = async (data: Partial<Evaluacion>): Promise<Evaluacion> => {
-  const response = await api.post('/evaluaciones/insitu/crear', data);
-  return response.data;
-};
+  createInsitu: async (data: Partial<BulkEvaluciones>): Promise<BulkEvaluacionesResponse> => {
+    const response = await api.post('/evaluaciones/insitu/crear', data);
+    return response.data.data;
+  },
 
-export const getEvaluacionByDocente = async (documento: string): Promise<Evaluacion[]> => {
-  const response = await api.get(`/evaluaciones/insitu/${documento}`);
-  return response.data;
-};
+  getByDocente: async (documento: string): Promise<Evaluacion[]> => {
+    const response = await api.get(`/evaluaciones/insitu/${documento}`);
+    return response.data.data;
+  },
 
-export const getEvaluacionByEstudiante = async (documento: string): Promise<Evaluacion[]> => {
-  const response = await api.get(`/evaluaciones/estudiante/${documento}`);
-  return response.data.data;
+  getByEstudiante: async (documento: string): Promise<Evaluacion[]> => {
+    const response = await api.get(`/evaluaciones/estudiante/${documento}`);
+    return response.data.data;
+  },
+
+  getByEstudianteByConfiguracion: async (documento: string, configuracionId: number): Promise<Evaluacion[]> => {
+    const response = await api.get(`/evaluaciones/estudiante/${documento}/configuracion/${configuracionId}`);
+    return response.data.data;
+  }
 };

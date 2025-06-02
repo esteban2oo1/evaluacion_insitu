@@ -219,6 +219,41 @@
 
 /**
  * @swagger
+ * /evaluaciones/estudiante/{documentoEstudiante}/configuracion/{configuracionId}:
+ *   get:
+ *     summary: Obtener evaluaciones por documento del estudiante y por ID de configuración
+ *     tags: [Evaluaciones]
+ *     parameters:
+ *       - in: path
+ *         name: documentoEstudiante
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Documento del estudiante
+ *       - in: path
+ *         name: configuracionId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la configuración de evaluación
+ *     responses:
+ *       200:
+ *         description: Evaluaciones encontradas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Evaluacion'
+ *       404:
+ *         description: Evaluaciones no encontradas
+ *       500:
+ *         description: Error del servidor
+ */
+
+
+/**
+ * @swagger
  * /evaluaciones/docente/{documentoDocente}:
  *   get:
  *     summary: Obtener evaluaciones por documento del docente

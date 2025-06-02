@@ -65,7 +65,7 @@ export default function LoginPage() {
           const userRole = profile.data.roles.principal.nombre.toLowerCase()
           switch (userRole) {
             case "estudiante":
-              redirectPath = "/estudiante/dashboard"
+              redirectPath = "/estudiante/bienvenida"
               break
             case "docente":
               redirectPath = "/docente/dashboard"

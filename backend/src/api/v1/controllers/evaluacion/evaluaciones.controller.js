@@ -28,7 +28,7 @@ const createEvaluacionU = async (req, res, next) => {
     }
 
     // Verificar que el tipo de evaluación existe y está activo
-    const configuracionDetalles = await TiposEvaluacion.getConfiguracionDetalles(tipoEvaluacionId);
+    const configuracionDetalles = await TiposEvaluacion.getConfiguracionDetalles(tipoEvaluacionId, req.user.roles);
     if (!configuracionDetalles || !configuracionDetalles.configuracion.ACTIVO) {
       return errorResponse(res, { 
         code: 404, 
@@ -113,7 +113,7 @@ const createEvaluacionU = async (req, res, next) => {
 
     if (evaluacionesCreadas.length === 0) {
       return errorResponse(res, { 
-        code: 400, 
+        code: 200, 
         message: "No se pudieron crear nuevas evaluaciones. Posiblemente ya existan todas las evaluaciones necesarias." 
       });
     }
@@ -170,6 +170,17 @@ const getEvaluacionesByEstudiante = async (req, res, next) => {
   try {
     const { documentoEstudiante } = req.params;
     const evaluaciones = await Evaluaciones.getEvaluacionesByEstudiante(documentoEstudiante);
+    successResponse(res, { data: evaluaciones, message: MESSAGES.GENERAL.FETCH_SUCCESS });
+  } catch (error) {
+    console.error('Error al obtener evaluaciones del estudiante:', error);
+    errorResponse(res, { message: MESSAGES.GENERAL.ERROR, error });
+  }
+};
+
+const getEvaluacionesByEstudianteByConfiguracion = async (req, res, next) => {
+  try {
+    const { documentoEstudiante, configuracionId } = req.params;
+    const evaluaciones = await Evaluaciones.getEvaluacionesByEstudianteByConfiguracion(documentoEstudiante, configuracionId);
     successResponse(res, { data: evaluaciones, message: MESSAGES.GENERAL.FETCH_SUCCESS });
   } catch (error) {
     console.error('Error al obtener evaluaciones del estudiante:', error);
@@ -436,6 +447,7 @@ module.exports = {
   getEvaluaciones,
   getEvaluacionById,
   getEvaluacionesByEstudiante,
+  getEvaluacionesByEstudianteByConfiguracion,
   getEvaluacionesByDocente,
   createEvaluacion,
   updateEvaluacion,
