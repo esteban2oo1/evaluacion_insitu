@@ -13,7 +13,8 @@ const getDashboardStats = async (req, res) => {
 
 const getAspectosPromedio = async (req, res) => {
     try {
-        const aspectos = await dashboardModel.getAspectosPromedio();
+        const { idConfiguracion } = req.params;
+        const aspectos = await dashboardModel.getAspectosPromedio(idConfiguracion);
         res.json(aspectos);
     } catch (error) {
         console.error('Error al obtener promedios por aspecto:', error);

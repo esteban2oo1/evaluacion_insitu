@@ -46,7 +46,7 @@ export interface TipoEvaluacion {
 } 
 
 export interface ConfiguracionResponse {
-  configuracion: ConfiguracionEvaluacion;
+  configuracion: ConfiguracionInformacion;
   aspectos: AspectoEvaluacion[];
   valoraciones: EscalaValoracion[];
 }
@@ -84,6 +84,16 @@ export interface BulkEvaluacionRequest {
 export interface EstadoActivo {
   id: number;
   activo: number;
+}
+
+// -----------------------------------
+
+export interface ConfiguracionInformacion {
+  ID: number;
+  NOMBRE: string;
+  FECHA_INICIO: string;
+  FECHA_FIN: string;
+  ACTIVO: boolean;
 }
 
 // -----------------------------------

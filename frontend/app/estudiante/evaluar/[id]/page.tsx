@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { tiposEvaluacionesService } from "@/lib/services/evaluacionInsitu/tiposEvaluaciones";
 import { createDetallesEvaluacion } from "@/lib/services/evaluacionInsitu/evaluacionDetalle";
 import { ModalConfirmacionEvaluacion } from "@/app/estudiante/components/ModalConfirmacionEvaluacion";
+
 import type {
   ConfiguracionResponse,
 } from "@/lib/types/evaluacionInsitu";
@@ -84,14 +85,6 @@ export default function EvaluarDocentePage({
 
   const handleConfirmSubmit = async () => {
   if (!config) return;
-
-  const evaluationData = {
-    id_evaluacion: searchParams.get("id") || "",
-    programa: searchParams.get("programa") || "",
-    nombreDocente: searchParams.get("docente") || "",
-    asignatura: searchParams.get("materia") || "",
-    semestre: searchParams.get("semestre") || "",
-  };
 
   // Construir el payload para el bulk
   const bulkPayload = {
@@ -170,7 +163,7 @@ export default function EvaluarDocentePage({
       <div className="container mx-auto max-w-2xl md:max-w-4xl">
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-lg sm:text-2xl">EVALUACIÓN INSITU - DIÁLOGO FORMATIVO</CardTitle>
+            <CardTitle className="text-lg sm:text-2xl">Evaluación {config.configuracion?.NOMBRE}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit}>
@@ -395,7 +388,7 @@ export default function EvaluarDocentePage({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push("/estudiante/dashboard")}
+                  onClick={() => router.push(`/estudiante/dashboard/${id}`)}
                   className="w-full sm:w-auto"
                 >
                   Cancelar

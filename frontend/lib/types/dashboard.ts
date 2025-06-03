@@ -2,7 +2,6 @@ export interface AspectoEvaluacion {
   ASPECTO: string;
   PROMEDIO_GENERAL: number;
 }
-
 export interface DocenteRanking {
   ID_DOCENTE: string;
   DOCENTE: string;
@@ -14,7 +13,6 @@ export interface DocenteRanking {
   evaluaciones_pendientes: number;
   POSICION?: string;
 }
-
 export interface DashboardStats {
   idConfiguracion: number;
   total_estudiantes: number;
@@ -27,8 +25,21 @@ export interface DashboardStats {
   porcentaje_docentes_evaluados: number;
 }
 
+export interface DocentePodio {
+  ID_DOCENTE: string;
+  DOCENTE: string;
+  TOTAL_PUNTAJE: number;
+  PROMEDIO_GENERAL: number;
+  TOTAL_RESPUESTAS: number;
+  evaluaciones_esperadas: number;
+  evaluaciones_realizadas: number;
+  evaluaciones_pendientes: number;
+  POSICION: string;
+}
+
 export interface DashboardResponse {
   stats: DashboardStats;
   aspectos: AspectoEvaluacion[];
-  podio: DocenteRanking[];
+  ranking: DocenteRanking[];
+  podio: DocentePodio[];
 } 

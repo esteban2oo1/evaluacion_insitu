@@ -7,12 +7,12 @@
 
 /**
  * @swagger
- * /dashboard/stats:
+ * /dashboard/stats/configuracion/{idConfiguracion}:
  *   get:
  *     summary: Obtiene estadísticas generales del dashboard
  *     tags: [Dashboard]
  *     parameters:
- *       - in: query
+ *       - in: path
  *         name: idConfiguracion
  *         required: true
  *         schema:
@@ -58,10 +58,17 @@
 
 /**
  * @swagger
- * /dashboard/aspectos:
+ * /dashboard/aspectos/configuracion/{idConfiguracion}:
  *   get:
  *     summary: Obtiene promedios por aspecto de evaluación
  *     tags: [Dashboard]
+ *     parameters:
+ *       - in: path
+ *         name: idConfiguracion
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: ID de la configuración de evaluación
  *     responses:
  *       200:
  *         description: Promedios obtenidos exitosamente

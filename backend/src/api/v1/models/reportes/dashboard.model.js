@@ -76,31 +76,27 @@ const getDashboardStats = async (idConfiguracion) => {
     return stats;
 };
 
-const getAspectosPromedio = async () => {
+const getAspectosPromedio = async (idConfiguracion) => {
     const pool = await getPool();
     const query = `
         SELECT 
-        a.ETIQUETA AS ASPECTO, 
-        ROUND(AVG(cv.PUNTAJE), 2) AS PROMEDIO_GENERAL
-    FROM vista_academica_insitus va
-    JOIN evaluaciones e
-        ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE
-        AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
-    JOIN evaluacion_detalle ed
-        ON e.ID = ed.EVALUACION_ID
-    JOIN configuracion_aspecto ca
-        ON ed.ASPECTO_ID = ca.ASPECTO_ID  
-    JOIN aspectos_evaluacion a
-        ON ca.ASPECTO_ID = a.ID
-    JOIN configuracion_valoracion cv
-        ON ed.VALORACION_ID = cv.VALORACION_ID
-    GROUP BY 
-        a.ID, a.ETIQUETA
-    ORDER BY 
-        a.ID;
+            ae.ETIQUETA AS ASPECTO,
+            ROUND(AVG(cv.PUNTAJE), 2) AS PROMEDIO_GENERAL
+        FROM evaluaciones e
+        JOIN configuracion_aspecto ca 
+            ON e.ID_CONFIGURACION = ca.CONFIGURACION_EVALUACION_ID
+        JOIN aspectos_evaluacion ae 
+            ON ca.ASPECTO_ID = ae.ID
+        JOIN configuracion_valoracion cv 
+            ON ca.CONFIGURACION_EVALUACION_ID = cv.CONFIGURACION_EVALUACION_ID
+        WHERE ca.ACTIVO = TRUE
+        AND cv.ACTIVO = TRUE
+        AND e.ID_CONFIGURACION = ?
+        GROUP BY ae.ID, ae.ETIQUETA
+        ORDER BY ae.ID;
     `;
 
-    const [aspectos] = await pool.query(query);
+    const [aspectos] = await pool.query(query, [idConfiguracion]);
     return aspectos;
 };
 
@@ -111,10 +107,9 @@ const getRankingDocentes = async () => {
             SELECT 
                 va.ID_DOCENTE, 
                 va.DOCENTE, 
-                COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)) AS evaluaciones_esperadas,
+                COUNT(va.ID_DOCENTE) AS evaluaciones_esperadas,
                 COUNT(DISTINCT CASE WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) END) AS evaluaciones_realizadas,
-                COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)) -
-                COUNT(DISTINCT CASE WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) END) AS evaluaciones_pendientes,
+                COUNT(va.ID_DOCENTE) - COUNT(DISTINCT CASE WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) END) AS evaluaciones_pendientes,
                 IFNULL(SUM(cv.PUNTAJE), 0) AS TOTAL_PUNTAJE,
                 IFNULL(COUNT(DISTINCT ed.ID), 0) AS TOTAL_RESPUESTAS,
                 IFNULL(ROUND(AVG(cv.PUNTAJE), 2), 0.00) AS PROMEDIO_GENERAL
