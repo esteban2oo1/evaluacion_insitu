@@ -1,1 +1,14 @@
 .qodo
+node_modules/
+*.log
+.env
+pnpm-lock.yaml
+package-lock.json
+.DS_Store
+.next/
+.vscode/
+.idea/
+coverage/
+dist/
+public/*.tmp
+public/*.cache
