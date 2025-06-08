@@ -72,10 +72,37 @@ const deleteConfiguracionAspecto = async (req, res, next) => {
   }
 };
 
+const updateEstadoConfiguracionAspecto = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { activo } = req.body;
+
+    if (typeof activo !== 'number' || (activo !== 0 && activo !== 1)) {
+      return errorResponse(res, { code: 400, message: 'Valor de estado inválido' });
+    }
+
+    const configuracion = await ConfiguracionAspectoModel.getConfiguracionAspectoById(id);
+
+    if (!configuracion) {
+      return errorResponse(res, { code: 404, message: MESSAGES.GENERAL.NOT_FOUND });
+    }
+
+    const updated = await ConfiguracionAspectoModel.updateEstado(id, activo);
+
+    return successResponse(res, {
+      message: MESSAGES.GENERAL.UPDATED,
+      data: updated
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getConfiguracionesAspecto,
   getConfiguracionAspectoById,
   createConfiguracionAspecto,
   updateConfiguracionAspecto,
-  deleteConfiguracionAspecto
+  deleteConfiguracionAspecto,
+  updateEstadoConfiguracionAspecto
 };

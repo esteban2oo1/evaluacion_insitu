@@ -7,6 +7,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpecs = require('./config/swagger_config');
 const { initializeDatabase } = require('./db');
 const routes = require('./api/v1/routes');
+const dashboardRoutes = require('./api/v1/routes/reportes/dashboard.routes');
 const errorHandler = require('./api/v1/middlewares/errorHandler');
 
 // Initialize express app
@@ -52,6 +53,7 @@ initializeDatabase()
 
 // API routes
 app.use('/api/v1', routes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Swagger documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs));

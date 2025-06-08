@@ -5,13 +5,17 @@ const {
   getDetalleById,
   createDetalle,
   updateDetalle,
-  deleteDetalle
+  deleteDetalle,
+  createDetallesEvaluacion
 } = require('../../controllers/evaluacion/evaluacionDetalle.controller');
+
+const { verifyToken } = require('../../middlewares/userAuth.middleware');
 
 const router = express.Router();
 
 router.get('/', getDetalles);
 router.post('/', createDetalle);
+router.post('/bulk', verifyToken, createDetallesEvaluacion);
 router.get('/:id', getDetalleById);
 router.put('/:id', updateDetalle);
 router.delete('/:id', deleteDetalle);

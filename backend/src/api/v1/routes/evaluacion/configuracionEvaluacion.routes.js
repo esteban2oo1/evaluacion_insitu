@@ -5,6 +5,7 @@ const {
   createConfiguracion,
   updateConfiguracion,
   deleteConfiguracion,
+  updateEstadoConfiguracion
 } = require('../../controllers/evaluacion/configuracionEvaluacion.controller');
 
 const configuracionEvaluacionSchema = require('../../validations/evaluacion/configuracionEvaluacion.validation');
@@ -13,10 +14,11 @@ const validate = require('../../middlewares/validate');
 
 const router = express.Router();
 
-router.get('/', getConfiguraciones);
-router.post('/', verifyToken, checkRole([1]), validate(configuracionEvaluacionSchema), createConfiguracion);
-router.get('/:id', verifyToken, checkRole([1]), getConfiguracionById);
-router.put('/:id', verifyToken, checkRole([1]), validate(configuracionEvaluacionSchema), updateConfiguracion);
-router.delete('/:id', verifyToken, checkRole([1]), deleteConfiguracion);
+router.patch('/:id/estado', updateEstadoConfiguracion);
+router.get('/', verifyToken, checkRole(['Admin', 'Estudiante']), getConfiguraciones);
+router.post('/', verifyToken, checkRole(['Admin']), validate(configuracionEvaluacionSchema), createConfiguracion);
+router.get('/:id', verifyToken, checkRole(['Admin']), getConfiguracionById);
+router.put('/:id', verifyToken, checkRole(['Admin']), validate(configuracionEvaluacionSchema), updateConfiguracion);
+router.delete('/:id', verifyToken, checkRole(['Admin']), deleteConfiguracion);
 
 module.exports = router;

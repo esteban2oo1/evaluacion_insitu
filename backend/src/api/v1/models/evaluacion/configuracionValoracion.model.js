@@ -58,7 +58,20 @@ const ConfiguracionValoracion = {
     } catch (error) {
       throw error;
     }
-  }
+  },
+
+  updateEstado: async (id, activo) => {
+    try {
+      const pool = getPool();
+      await pool.query(
+        'UPDATE CONFIGURACION_VALORACION SET ACTIVO = ? WHERE ID = ?',
+        [activo, id]
+      );
+      return { id, activo };
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 module.exports = ConfiguracionValoracion;

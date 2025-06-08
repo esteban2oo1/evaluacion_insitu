@@ -4,28 +4,27 @@ const express = require('express');
 const {
   getEvaluaciones,
   getEvaluacionById,
-  getEvaluacionesByEstudiante,
-  getEvaluacionesByDocente,
   createEvaluacion,
   updateEvaluacion,
   deleteEvaluacion,
-  createEvaluacionU
+  createEvaluacionU,
+  getEvaluacionesByEstudiante,
+  getEvaluacionesByEstudianteByConfiguracion,
+  getEvaluacionesByDocente
 } = require('../../controllers/evaluacion/evaluaciones.controller');
 
-const { verifyToken } = require('../../middlewares/userAuth.middleware');
+const { verifyToken, checkRole } = require('../../middlewares/userAuth.middleware');
 
 const router = express.Router();
 
-// Rutas para obtener evaluaciones
+router.post('/insitu/crear', verifyToken, checkRole(['Admin', 'Estudiante']), createEvaluacionU);
 router.get('/', getEvaluaciones);
-router.get('/estudiante/:documentoEstudiante', getEvaluacionesByEstudiante);
-router.get('/docente/:documentoDocente', getEvaluacionesByDocente);
-router.get('/:id', getEvaluacionById);
-
-// Rutas protegidas
-router.post('/insitu/crear', verifyToken, createEvaluacionU);
 router.post('/', verifyToken, createEvaluacion);
+router.get('/:id', getEvaluacionById);
 router.put('/:id', verifyToken, updateEvaluacion);
 router.delete('/:id', verifyToken, deleteEvaluacion);
+router.get('/estudiante/:documentoEstudiante', getEvaluacionesByEstudiante);
+router.get('/estudiante/:documentoEstudiante/configuracion/:configuracionId', getEvaluacionesByEstudianteByConfiguracion);
+router.get('/docente/:documentoDocente', getEvaluacionesByDocente);
 
 module.exports = router;

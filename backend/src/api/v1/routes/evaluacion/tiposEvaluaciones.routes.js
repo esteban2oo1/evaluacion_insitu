@@ -1,6 +1,7 @@
 const express = require('express');
 const {
   getConfiguracionDetalles,
+  updateEstadoTipo,
   getTipos,
   getTipoById,
   createTipo,
@@ -8,11 +9,12 @@ const {
   deleteTipo
 } = require('../../controllers/evaluacion/tiposEvaluaciones.controller');
 
-const { verifyToken } = require('../../middlewares/userAuth.middleware');
+const { verifyToken, checkRole } = require('../../middlewares/userAuth.middleware');
 
 const router = express.Router();
 
-router.get('/configuracion/:id', getConfiguracionDetalles);
+router.get('/configuracion/:id', verifyToken, checkRole(['Admin', 'Estudiante']), getConfiguracionDetalles);
+router.patch('/:id/estado', updateEstadoTipo);
 router.get('/', getTipos);
 router.get('/:id', getTipoById);
 router.post('/', createTipo);

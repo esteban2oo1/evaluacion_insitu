@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = process.env;
+const { getPool } = require('../../../db');
 
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -25,19 +26,62 @@ const verifyToken = (req, res, next) => {
 };
 
 // Middleware para verificar roles permitidos
-const checkRole = (allowedRoles) => (req, res, next) => {
-  // Verificamos que el usuario tenga el objeto 'user' y su rol esté presente
-  if (!req.user || !req.user.rolId) {
-    return res.status(401).json({ success: false, message: 'No estás autenticado o no tienes rol asignado' });
+const checkRole = (allowedRoles) => async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({ success: false, message: 'No estás autenticado' });
+    }
+
+    const userId = req.user.userId;
+    const pool = await getPool();
+
+    // Primero verificamos en DATALOGIN
+    const [dataloginRows] = await pool.query(
+      `SELECT user_idrole, role_name 
+       FROM DATALOGIN 
+       WHERE user_id = ?`,
+      [userId]
+    );
+
+    if (dataloginRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    const mainRoleId = dataloginRows[0].user_idrole;
+    const mainRoleName = dataloginRows[0].role_name;
+
+    // Ahora obtenemos los roles adicionales desde users_roles
+    const [userRolesRows] = await pool.query(
+      `SELECT r.ID, r.NOMBRE_ROL 
+       FROM users_roles ur 
+       JOIN roles r ON ur.rol_id = r.ID 
+       WHERE ur.user_id = ?`,
+      [userId]
+    );
+
+    // Crear un arreglo de roles que contenga tanto el rol principal como los roles adicionales
+    const roles = [mainRoleName, ...userRolesRows.map(row => row.NOMBRE_ROL)];
+
+    // Guardamos los roles en el objeto `req.user`
+    req.user.roles = roles;
+
+    // Verificamos si el rol principal o alguno de los roles adicionales está permitido
+    if (allowedRoles.includes(mainRoleName) || userRolesRows.some(row => allowedRoles.includes(row.NOMBRE_ROL))) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: 'No tienes permiso para acceder a este recurso'
+    });
+
+  } catch (error) {
+    console.error('Error en checkRole:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al verificar roles'
+    });
   }
-
-  const userRole = req.user.rolId; // rolId viene del token
-
-  if (!allowedRoles.includes(userRole)) {
-    return res.status(403).json({ success: false, message: 'No tienes permiso para acceder a este recurso' });
-  }
-
-  next(); // Si el rol es válido, continuamos con la solicitud
 };
 
 module.exports = { verifyToken, checkRole };

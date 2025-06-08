@@ -42,12 +42,6 @@ const createEscala = async (req, res, next) => {
   try {
     const escalaData = req.body;
 
-    // 👇 Si necesitas lógica adicional como en el ejemplo anterior:
-    // Ejemplo: Si hay una fecha en escalaData que necesitas verificar:
-    // const fechaInicio = moment.utc(escalaData.FECHA_INICIO).startOf('day');
-    // const today = moment.utc().startOf('day');
-    // escalaData.ACTIVO = fechaInicio.isSame(today) ? 1 : 0;
-
     const newEscala = await EscalaValoracionModel.createEscala(escalaData);
     return successResponse(res, { 
       code: 201, 
@@ -71,11 +65,6 @@ const updateEscala = async (req, res, next) => {
         message: MESSAGES.GENERAL.NOT_FOUND 
       });
     }
-
-    // 👇 Lógica adicional similar a la creación, si la necesitas.
-    // const fechaInicio = moment.utc(escalaData.FECHA_INICIO).startOf('day');
-    // const today = moment.utc().startOf('day');
-    // escalaData.ACTIVO = fechaInicio.isSame(today) ? 1 : 0;
 
     const updatedEscala = await EscalaValoracionModel.updateEscala(id, escalaData);
     return successResponse(res, { 

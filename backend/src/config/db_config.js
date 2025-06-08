@@ -11,7 +11,7 @@ module.exports = {
     database: process.env.DB_NAME
   },
   
-  // Configuración para la base de datos remota
+  // Configuración para la base de datos remota sigedin_ies
   dbRemoteConfig: {
     host: process.env.DB_REMOTE_HOST,
     port: process.env.DB_REMOTE_PORT,
@@ -20,12 +20,12 @@ module.exports = {
     database: process.env.DB_REMOTE_NAME
   },
   
-  // Configuración para la base de datos remota
+  // Configuración para la base de datos remota sigedin_seguridad
   dbSecurityConfig: {
-    host: process.env.DB_SECURITY_HOST,
-    port: process.env.DB_SECURITY_PORT,
-    user: process.env.DB_SECURITY_USER,
-    password: process.env.DB_SECURITY_PASSWORD,
+    host: process.env.DB_REMOTE_HOST,
+    port: process.env.DB_REMOTE_PORT,
+    user: process.env.DB_REMOTE_USER,
+    password: process.env.DB_REMOTE_PASSWORD,
     database: process.env.DB_SECURITY_NAME
   }
 };

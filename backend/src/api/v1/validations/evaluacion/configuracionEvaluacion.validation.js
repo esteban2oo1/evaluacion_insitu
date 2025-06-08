@@ -1,8 +1,18 @@
-// validations/configuracionEvaluacion.validation.js
 const Joi = require('joi');
 const moment = require('moment');
 
 const configuracionEvaluacionSchema = Joi.object({
+  TIPO_EVALUACION_ID: Joi.number()
+    .integer()
+    .positive()
+    .required()
+    .messages({
+      'number.base': 'El ID del tipo de evaluación debe ser un número',
+      'number.integer': 'El ID del tipo de evaluación debe ser un número entero',
+      'number.positive': 'El ID del tipo de evaluación debe ser un número positivo',
+      'any.required': 'El ID del tipo de evaluación es obligatorio'
+    }),
+
   FECHA_INICIO: Joi.date()
     .required()
     .custom((value, helpers) => {
@@ -30,21 +40,13 @@ const configuracionEvaluacionSchema = Joi.object({
       'any.required': 'La fecha fin es obligatoria',
     }),
 
-  // Aquí agregamos el campo ACTIVO que no vendrá en el request, pero lo generamos
-  ACTIVO: Joi.any().custom((value, helpers) => {
-    const { FECHA_INICIO } = helpers.state.ancestors[0]; // Obtenemos el inicio
-    const inicio = moment.utc(FECHA_INICIO).startOf('day');
-    const today = moment.utc().startOf('day');
+  ACTIVO: Joi.boolean()
+    .default(true)
+    .messages({
+      'boolean.base': 'El campo ACTIVO debe ser verdadero o falso',
+    }),
 
-    // Si es igual, activamos
-    if (inicio.isSame(today)) {
-      return 1;
-    } else {
-      return 0;
-    }
-  }),
-})
-.custom((obj, helpers) => {
+}).custom((obj, helpers) => {
   const inicio = moment.utc(obj.FECHA_INICIO).startOf('day');
   const fin = moment.utc(obj.FECHA_FIN).startOf('day');
 
@@ -54,6 +56,5 @@ const configuracionEvaluacionSchema = Joi.object({
 
   return obj;
 });
-
 
 module.exports = configuracionEvaluacionSchema;

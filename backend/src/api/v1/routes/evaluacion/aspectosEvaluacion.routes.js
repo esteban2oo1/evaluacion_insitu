@@ -15,9 +15,9 @@ const validate = require('../../middlewares/validate');
 const router = express.Router();
 
 router.get('/', getAspectos);
-router.post('/', verifyToken, checkRole([1]), validate(aspectoEvaluacionSchema), createAspecto);
-router.get('/:id', verifyToken, checkRole([1]), getAspectoById);
-router.put('/:id', verifyToken, checkRole([1]), validate(aspectoEvaluacionSchema), updateAspecto);
-router.delete('/:id', verifyToken, checkRole([1]), deleteAspecto);
+router.post('/', verifyToken, checkRole(['Admin']), validate(aspectoEvaluacionSchema), createAspecto);
+router.get('/:id', verifyToken, checkRole(['Admin']), getAspectoById);
+router.put('/:id', verifyToken, checkRole(['Admin']), validate(aspectoEvaluacionSchema), updateAspecto);
+router.delete('/:id', verifyToken, checkRole(['Admin']), deleteAspecto);
 
 module.exports = router;

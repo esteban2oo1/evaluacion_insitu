@@ -1,5 +1,50 @@
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     LoginRequest:
+ *       type: object
+ *       required:
+ *         - user_username
+ *         - user_password
+ *       properties:
+ *         user_username:
+ *           type: string
+ *           example: "1000001"
+ *         user_password:
+ *           type: string
+ *           example: "1000001"
+ *     LoginResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         message:
+ *           type: string
+ *           example: "Inicio de sesión exitoso"
+ *         data:
+ *           type: object
+ *           properties:
+ *             token:
+ *               type: string
+ *               example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *     ErrorResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: false
+ *         message:
+ *           type: string
+ *           example: "Error al procesar la solicitud"
+ *         error:
+ *           type: string
+ *           example: "Mensaje específico del error"
+ */
+
+/**
+ * @swagger
  * /auth/login:
  *   post:
  *     summary: Iniciar sesión
@@ -9,34 +54,44 @@
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               DOCUMENTO_USUARIO:
- *                 type: string
- *                 example: "1234567890"
- *               CONTRASEÑA:
- *                 type: string
- *                 example: "password123"
+ *             $ref: '#/components/schemas/LoginRequest'
  *     responses:
  *       200:
  *         description: Inicio de sesión exitoso
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 token:
- *                   type: string
- *                   example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *               $ref: '#/components/schemas/LoginResponse'
+ *       400:
+ *         description: Campos requeridos faltantes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       401:
  *         description: Credenciales incorrectas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Usuario inactivo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       404:
  *         description: Usuario no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
  *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 
 /**
@@ -58,6 +113,9 @@
  *                 success:
  *                   type: boolean
  *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Perfil obtenido exitosamente"
  *                 data:
  *                   oneOf:
  *                     - type: object
@@ -93,20 +151,32 @@
  *                         SEMESTRE_MATRICULA:
  *                           type: string
  *                           example: "2025-1"
- *                         MATERIAS_DOCENTE:
+ *                         NOMBRE_PROGRAMA:
+ *                           type: string
+ *                           example: "Ingeniería de Sistemas"
+ *                         MATERIAS:
  *                           type: array
  *                           items:
  *                             type: object
  *                             properties:
+ *                               AI:
+ *                                 type: integer
+ *                                 example: 1
+ *                               CODIGO_MATERIA:
+ *                                 type: string
+ *                                 example: "MAT101"
  *                               NOMBRE_MATERIA:
  *                                 type: string
  *                                 example: "Matemáticas I"
- *                               NOMBRE_DOCENTE:
- *                                 type: string
- *                                 example: "Pedro Salazar"
- *                               DOCUMENTO_DOCENTE:
- *                                 type: string
- *                                 example: "9000001"
+ *                               docente:
+ *                                 type: object
+ *                                 properties:
+ *                                   DOCUMENTO_DOCENTE:
+ *                                     type: string
+ *                                     example: "9000001"
+ *                                   NOMBRE_DOCENTE:
+ *                                     type: string
+ *                                     example: "Pedro Salazar"
  *                         ESTADO_MATRICULA:
  *                           type: string
  *                           example: "MATRICULADO"
@@ -118,10 +188,26 @@
  *                               example: "Estudiante"
  *       401:
  *         description: Token inválido o expirado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       403:
  *         description: Rol no válido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       404:
  *         description: Usuario no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       500:
  *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */

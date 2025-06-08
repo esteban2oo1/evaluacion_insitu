@@ -8,6 +8,9 @@
  *         ID:
  *           type: integer
  *           example: 1
+ *         TIPO_EVALUACION_ID:
+ *           type: integer
+ *           example: 1
  *         FECHA_INICIO:
  *           type: string
  *           format: date
@@ -23,17 +26,21 @@
  *     ConfiguracionEvaluacionInput:
  *       type: object
  *       required:
+ *         - TIPO_EVALUACION_ID
  *         - FECHA_INICIO
  *         - FECHA_FIN
  *       properties:
+ *         TIPO_EVALUACION_ID:
+ *           type: int
+ *           example: 1
  *         FECHA_INICIO:
  *           type: string
  *           format: date
- *           example: "2024-01-01"
+ *           example: "2025-04-20"
  *         FECHA_FIN:
  *           type: string
  *           format: date
- *           example: "2024-12-31"
+ *           example: "2025-05-20"
  *         ACTIVO:
  *           type: number
  *           description: Estado del aspecto (1 para activo, 0 para inactivo)
@@ -178,6 +185,60 @@
  *                   example: Configuración de evaluación eliminada correctamente
  *       404:
  *         description: Configuración no encontrada
+ *       500:
+ *         description: Error del servidor
+ */
+
+/**
+ * @swagger
+ * /configuracion-evaluacion/{id}/estado:
+ *   patch:
+ *     summary: Actualizar el estado (activo/inactivo) de una configuración de evaluación
+ *     tags: [Configuración de Evaluación]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: ID de la configuración de evaluación
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - activo
+ *             properties:
+ *               activo:
+ *                 type: boolean
+ *                 description: Nuevo estado de la configuración de evaluación
+ *                 example: false
+ *     responses:
+ *       200:
+ *         description: Estado actualizado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     activo:
+ *                       type: boolean
+ *                       example: false
+ *       400:
+ *         description: Valor inválido para el estado
+ *       404:
+ *         description: Tipo de evaluación no encontrado
  *       500:
  *         description: Error del servidor
  */

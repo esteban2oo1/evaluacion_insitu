@@ -5,13 +5,42 @@ const MESSAGES = require('../../../../constants/messages');
 const getConfiguracionDetalles = async (req, res, next) => {
   try {
     const { id } = req.params; // Obtener el ID de la configuración desde los parámetros de la URL
-    
-    // Obtener los detalles de la configuración
-    const detalles = await TiposEvaluacionModel.getConfiguracionDetalles(id);
-    
+    const roles = req.user.roles; // Obtener todos los roles del usuario desde `req.user.roles`
+
+    console.log("Roles del usuario:", roles); // Ver los roles para depuración
+
+    // Obtener los detalles de la configuración, pasando los roles
+    const detalles = await TiposEvaluacionModel.getConfiguracionDetalles(id, roles);
+
     return successResponse(res, {
       message: MESSAGES.GENERAL.FETCH_SUCCESS,
       data: detalles
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateEstadoTipo = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { activo } = req.body;
+
+    if (typeof activo !== 'number' || (activo !== 0 && activo !== 1)) {
+      return errorResponse(res, { code: 400, message: 'Valor de estado inválido' });
+    }
+
+    const tipo = await TiposEvaluacionModel.getTipoById(id);
+
+    if (!tipo) {
+      return errorResponse(res, { code: 404, message: MESSAGES.GENERAL.NOT_FOUND });
+    }
+
+    const updated = await TiposEvaluacionModel.updateEstado(id, activo);
+
+    return successResponse(res, {
+      message: MESSAGES.GENERAL.UPDATED,
+      data: updated
     });
   } catch (error) {
     next(error);
@@ -89,6 +118,7 @@ const deleteTipo = async (req, res, next) => {
 
 module.exports = {
   getConfiguracionDetalles,
+  updateEstadoTipo,
   getTipos,
   getTipoById,
   createTipo,
