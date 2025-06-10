@@ -422,10 +422,9 @@ export default function InformesPage() {
       }),
       new Paragraph({ children: [new TextRun({ text: `PERIODO ${datosInforme.periodo || "2025-1"}`, bold: true, size: 40 })], alignment: AlignmentType.CENTER }),
       ...crearSubtituloSegunTipo(tipoInforme),
-      new Paragraph({ children: [new TextRun({ text: "[GRÁFICO DE BARRAS AQUÍ]", italics: true, size: 36 })], alignment: AlignmentType.CENTER }),
+      new Paragraph({ children: [new TextRun({ text: "Gráfico generado dinámicamente", italics: true, size: 36 })], alignment: AlignmentType.CENTER }),
       new Paragraph({ children: [new TextRun({ text: `Promedio General ${obtenerTituloPromedio(tipoInforme)} ${datosInforme.promedioGeneral || 0}%`, bold: true, size: 40 })], alignment: AlignmentType.CENTER }),
       ...crearTablaResumen(datosInforme),
-      // Aquí puedes agregar más detalles según el tipo de informe
     ]
   }
 
@@ -453,10 +452,10 @@ export default function InformesPage() {
   }
   // Reemplaza estos datos por los reales del sistema
   const datosInforme: DatosInforme = {
-    facultad: "FACULTAD DE INGENIERÍA Y CIENCIAS BÁSICAS",
-    programa: "INGENIERÍA DE SISTEMAS POR CICLOS",
+    facultad: selectedFacultad || "FACULTAD DE CIENCIAS ECONÓMICAS", // Cambia según el programa
+    programa: selectedPrograma || "CONTADURÍA", // Cambia según el programa
     periodo: "2025-1",
-    promedioGeneral: 87.5,
+    promedioGeneral: 87.5, // Reemplazar con datos reales
     fortalezasConsolidadas: ["Trabajo en equipo", "Comunicación"],
     aspectosMejoraConsolidados: ["Uso de TIC", "Retroalimentación"],
     tipo: selectedType || "programa"

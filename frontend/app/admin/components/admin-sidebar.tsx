@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart, FileText, Users, FileCode, Download, Settings } from "lucide-react"
+import { BarChart, FileText, Users, FileCode, Download } from "lucide-react"
 
 export function AdminSidebar() {
   const pathname = usePathname()
@@ -75,17 +75,6 @@ export function AdminSidebar() {
             >
               <Download className="h-5 w-5 mr-3" />
               Informes
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/admin/configuracion"
-              className={`flex items-center p-2 rounded-md ${
-                isActive("/admin/configuracion") ? "bg-gray-100 text-black" : "text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              <Settings className="h-5 w-5 mr-3" />
-              Configuración
             </Link>
           </li>
         </ul>
