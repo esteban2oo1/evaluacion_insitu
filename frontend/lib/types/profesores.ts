@@ -1,3 +1,12 @@
+export interface ProfesoresParams {
+  idConfiguracion?: number;
+  periodo?: string;
+  nombreSede?: string;
+  nomPrograma?: string;
+  semestre?: string;
+  grupo?: string;
+}
+
 export interface AsignaturaDocente {
   COD_ASIGNATURA: number
   ASIGNATURA: string
@@ -5,6 +14,7 @@ export interface AsignaturaDocente {
   DOCENTE: string
   SEMESTRE_PREDOMINANTE: string
   PROGRAMA_PREDOMINANTE: string
+  NOMBRE_SEDE: string
   total_evaluaciones_esperadas: number
   evaluaciones_completadas: number
   evaluaciones_pendientes: number

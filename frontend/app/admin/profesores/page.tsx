@@ -11,14 +11,34 @@ import { Search, ChevronDown, ChevronRight, MessageSquare, Check, X, BookOpen } 
 import { useToast } from "@/hooks/use-toast"
 import { useFormContext } from "@/lib/form-context"
 import { profesoresService } from "@/lib/services/profesores"
-import { AsignaturaDocente, AspectoPuntaje } from "@/lib/types/profesores"
+import { AsignaturaDocente, AspectoPuntaje, ProfesoresParams } from "@/lib/types/profesores"
+import Filtros from "@/app/admin/components/filters" // Ajustar la ruta según tu estructura
+
+// Interfaz para el estado de filtros
+interface FiltrosState {
+  configuracionSeleccionada: number | null
+  periodoSeleccionado: string
+  sedeSeleccionada: string
+  programaSeleccionado: string
+  semestreSeleccionado: string
+  grupoSeleccionado: string
+}
 
 export default function ProfesoresPage() {
   const { toast } = useToast()
+  
+  // Estados para filtros
+  const [filtros, setFiltros] = useState<FiltrosState>({
+    configuracionSeleccionada: null,
+    periodoSeleccionado: "",
+    sedeSeleccionada: "",
+    programaSeleccionado: "",
+    semestreSeleccionado: "",
+    grupoSeleccionado: ""
+  })
+  
+  // Estados existentes
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedProgram, setSelectedProgram] = useState<string>("")
-  const [selectedSemester, setSelectedSemester] = useState<string>("")
-  const [selectedGroup, setSelectedGroup] = useState<string>("")
   const [selectedTeacher, setSelectedTeacher] = useState<string | null>(null)
   const [showEvaluations, setShowEvaluations] = useState<string | null>(null)
   const [selectedAspect, setSelectedAspect] = useState<{ teacherId: string; aspectId: string } | null>(null)
@@ -31,13 +51,80 @@ export default function ProfesoresPage() {
   // Usar el contexto para los aspectos
   const { activeAspectIds } = useFormContext()
 
-  // Obtener grupos únicos
-  const grupos = useMemo(() => {
-    const gruposSet = new Set(asignaturas.map(asig => asig.SEMESTRE_PREDOMINANTE))
-    return Array.from(gruposSet)
-  }, [asignaturas])
+  // Función para convertir filtros a parámetros del endpoint
+  const convertirFiltrosAParams = useCallback((filtros: FiltrosState): ProfesoresParams => {
+    const params: ProfesoresParams = {}
+    
+    if (filtros.configuracionSeleccionada) {
+      params.idConfiguracion = filtros.configuracionSeleccionada
+    }
+    if (filtros.periodoSeleccionado) {
+      params.periodo = filtros.periodoSeleccionado
+    }
+    if (filtros.sedeSeleccionada) {
+      params.nombreSede = filtros.sedeSeleccionada
+    }
+    if (filtros.programaSeleccionado) {
+      params.nomPrograma = filtros.programaSeleccionado
+    }
+    if (filtros.semestreSeleccionado) {
+      params.semestre = filtros.semestreSeleccionado
+    }
+    if (filtros.grupoSeleccionado) {
+      params.grupo = filtros.grupoSeleccionado
+    }
+    
+    return params
+  }, [])
 
-  // Agrupar asignaturas por docente
+  // Función para cargar datos desde el endpoint
+  const cargarDatos = useCallback(async (filtrosActuales: FiltrosState) => {
+    setLoading(true)
+    try {
+      const params = convertirFiltrosAParams(filtrosActuales)
+      const data = await profesoresService.getAsignaturas(params)
+      setAsignaturas(data)
+      
+      // Limpiar estados relacionados cuando cambian los datos
+      setSelectedTeacher(null)
+      setShowEvaluations(null)
+      setSelectedAspect(null)
+      setSelectedCourse(null)
+      setAspectosEvaluados({})
+      
+    } catch (error) {
+      console.error('Error al cargar datos:', error)
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los datos de los profesores",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [convertirFiltrosAParams, toast])
+
+  // Funciones para manejar filtros
+  const handleFiltrosChange = useCallback((nuevosFiltros: FiltrosState) => {
+    setFiltros(nuevosFiltros)
+    // Cargar datos automáticamente cuando cambian los filtros
+    cargarDatos(nuevosFiltros)
+  }, [cargarDatos])
+
+  const limpiarFiltros = useCallback(() => {
+    const filtrosLimpiados = {
+      configuracionSeleccionada: filtros.configuracionSeleccionada, // Mantener la configuración seleccionada
+      periodoSeleccionado: "",
+      sedeSeleccionada: "",
+      programaSeleccionado: "",
+      semestreSeleccionado: "",
+      grupoSeleccionado: ""
+    }
+    setFiltros(filtrosLimpiados)
+    cargarDatos(filtrosLimpiados)
+  }, [filtros.configuracionSeleccionada, cargarDatos])
+
+  // Agrupar asignaturas por docente (ya no necesitamos filtrar aquí porque viene filtrado del endpoint)
   const asignaturasPorDocente = useMemo(() => {
     const agrupadas: Record<string, Record<string, AsignaturaDocente[]>> = {}
     
@@ -54,7 +141,7 @@ export default function ProfesoresPage() {
     return agrupadas
   }, [asignaturas])
 
-  // Obtener docentes únicos
+  // Obtener docentes únicos de las asignaturas
   const docentes = useMemo(() => {
     const docentesSet = new Set(asignaturas.map(asig => asig.ID_DOCENTE))
     return Array.from(docentesSet).map(id => {
@@ -67,7 +154,7 @@ export default function ProfesoresPage() {
     })
   }, [asignaturas])
 
-  // Filtrar docentes cuando cambian los criterios de búsqueda
+  // Filtrar docentes cuando cambian los criterios de búsqueda (solo búsqueda local)
   const filteredTeachers = useMemo(() => {
     let result = docentes
 
@@ -80,53 +167,13 @@ export default function ProfesoresPage() {
       )
     }
 
-    // Filtrar por programa
-    if (selectedProgram) {
-      result = result.filter((teacher) => teacher.PROGRAMA_PREDOMINANTE === selectedProgram)
-    }
-
-    // Filtrar por grupo
-    if (selectedGroup) {
-      result = result.filter(teacher => {
-        const asignaturasDocente = asignaturasPorDocente[teacher.ID_DOCENTE] || {}
-        return Object.keys(asignaturasDocente).some(semestre => semestre === selectedGroup)
-      })
-    }
-
     return result
-  }, [docentes, searchTerm, selectedProgram, selectedGroup, asignaturasPorDocente])
+  }, [docentes, searchTerm])
 
+  // Cargar datos iniciales
   useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        const data = await profesoresService.getAsignaturas()
-        setAsignaturas(data)
-      } catch (error) {
-        console.error('Error al cargar datos:', error)
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los datos de los profesores",
-          variant: "destructive",
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    cargarDatos()
-  }, [toast])
-
-  // Obtener programas únicos
-  const programas = useMemo(() => {
-    const programasSet = new Set(asignaturas.map(asig => asig.PROGRAMA_PREDOMINANTE))
-    return Array.from(programasSet)
-  }, [asignaturas])
-
-  // Obtener semestres únicos
-  const semestres = useMemo(() => {
-    const semestresSet = new Set(asignaturas.map(asig => asig.SEMESTRE_PREDOMINANTE))
-    return Array.from(semestresSet)
-  }, [asignaturas])
+    cargarDatos(filtros)
+  }, []) // Solo al montar el componente
 
   // Función para cargar aspectos evaluados
   const cargarAspectosEvaluados = useCallback(async (idDocente: string) => {
@@ -146,7 +193,7 @@ export default function ProfesoresPage() {
     } finally {
       setLoadingAspectos(prev => ({ ...prev, [idDocente]: false }))
     }
-  }, [toast])
+  }, [aspectosEvaluados, toast])
 
   // Función para manejar la selección de un profesor
   const handleSelectTeacher = useCallback((id: string) => {
@@ -185,21 +232,6 @@ export default function ProfesoresPage() {
     )
   }, [])
 
-  // Función para cambiar el acceso de un profesor
-  const toggleAccess = useCallback(
-    (id: string, e: React.MouseEvent) => {
-      e.stopPropagation()
-
-      // Aquí iría la lógica para actualizar el acceso del profesor
-      toast({
-        title: "Acceso actualizado",
-        description: "El acceso del profesor ha sido modificado",
-        variant: "default",
-      })
-    },
-    [toast],
-  )
-
   // Funciones de utilidad para colores
   const getScoreColor = useCallback((score: number) => {
     if (score >= 90) return "bg-green-500"
@@ -215,12 +247,14 @@ export default function ProfesoresPage() {
     return "text-red-700"
   }, [])
 
-  const getScoreBgColor = useCallback((score: number) => {
-    if (score >= 90) return "bg-green-100"
-    if (score >= 80) return "bg-blue-100"
-    if (score >= 70) return "bg-yellow-100"
-    return "bg-red-100"
-  }, [])
+  // Verificar si hay filtros aplicados
+  const hayFiltrosAplicados = useMemo(() => {
+    return filtros.periodoSeleccionado || 
+           filtros.sedeSeleccionada || 
+           filtros.programaSeleccionado || 
+           filtros.semestreSeleccionado || 
+           filtros.grupoSeleccionado
+  }, [filtros])
 
   if (loading) {
     return (
@@ -238,13 +272,28 @@ export default function ProfesoresPage() {
       </header>
 
       <main className="p-6">
+        {/* Componente de Filtros */}
+        <Filtros 
+          filtros={filtros}
+          onFiltrosChange={handleFiltrosChange}
+          onLimpiarFiltros={limpiarFiltros}
+          loading={loading}
+        />
+
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Lista de Profesores</CardTitle>
-            <CardDescription>Evaluaciones y desempeño de los docentes</CardDescription>
+            <CardDescription>
+              Evaluaciones y desempeño de los docentes
+              {hayFiltrosAplicados && (
+                <span className="ml-2 text-blue-600">
+                  (Filtros aplicados)
+                </span>
+              )}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Filtros y búsqueda */}
+            {/* Búsqueda */}
             <div className="flex flex-col md:flex-row gap-4 mb-6">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -255,33 +304,23 @@ export default function ProfesoresPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <div className="w-full md:w-1/4">
-                <select
-                  className="w-full p-2 border rounded-md"
-                  value={selectedProgram}
-                  onChange={(e) => setSelectedProgram(e.target.value)}
-                >
-                  <option value="">Todos los programas</option>
-                  {programas.map((programa) => (
-                    <option key={programa} value={programa}>
-                      {programa}
-                    </option>
-                  ))}
-                </select>
+            </div>
+
+            {/* Estadísticas rápidas */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="text-sm font-medium text-blue-900">Total Profesores</h3>
+                <p className="text-2xl font-bold text-blue-700">{filteredTeachers.length}</p>
               </div>
-              <div className="w-full md:w-1/4">
-                <select
-                  className="w-full p-2 border rounded-md"
-                  value={selectedGroup}
-                  onChange={(e) => setSelectedGroup(e.target.value)}
-                >
-                  <option value="">Todos los grupos</option>
-                  {grupos.map((grupo) => (
-                    <option key={grupo} value={grupo}>
-                      {grupo}
-                    </option>
-                  ))}
-                </select>
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h3 className="text-sm font-medium text-green-900">Programas</h3>
+                <p className="text-2xl font-bold text-green-700">
+                  {new Set(filteredTeachers.map(t => t.PROGRAMA_PREDOMINANTE)).size}
+                </p>
+              </div>
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <h3 className="text-sm font-medium text-purple-900">Asignaturas</h3>
+                <p className="text-2xl font-bold text-purple-700">{asignaturas.length}</p>
               </div>
             </div>
 
@@ -289,7 +328,10 @@ export default function ProfesoresPage() {
             <div className="space-y-4">
               {filteredTeachers.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  No se encontraron profesores con los criterios de búsqueda.
+                  {asignaturas.length === 0 && hayFiltrosAplicados ? 
+                    "No se encontraron profesores con los filtros aplicados." :
+                    "No se encontraron profesores con los criterios de búsqueda."
+                  }
                 </div>
               ) : (
                 filteredTeachers.map((teacher) => {
@@ -405,7 +447,7 @@ export default function ProfesoresPage() {
                               <div className="flex justify-between items-center mb-3">
                                 <h4 className="font-medium">Aspectos Evaluados</h4>
                                 <div className="text-sm text-gray-500">
-                                  Total de estudiantes: {asignaturasPorDocente[teacher.ID_DOCENTE]?.[selectedGroup || Object.keys(asignaturasPorDocente[teacher.ID_DOCENTE] || {})[0]]?.[0]?.total_evaluaciones_esperadas || 0}
+                                  Total de estudiantes: {asignaturasPorDocente[teacher.ID_DOCENTE]?.[Object.keys(asignaturasPorDocente[teacher.ID_DOCENTE] || {})[0]]?.[0]?.total_evaluaciones_esperadas || 0}
                                 </div>
                               </div>
                               <div className="space-y-4">
@@ -486,4 +528,3 @@ export default function ProfesoresPage() {
     </>
   )
 }
-

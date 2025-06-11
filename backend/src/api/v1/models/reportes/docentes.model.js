@@ -1,7 +1,44 @@
 const { getPool } = require('../../../../db');
 
-const getDocentesAsignaturasModel = async () => {
+const getDocentesAsignaturasModel = async ({ idConfiguracion, periodo, nombreSede, nomPrograma, semestre, grupo }) => {
     const pool = await getPool();
+
+    let conditions = [];
+    let params = [];
+
+    // Armado dinámico de filtros
+    if (idConfiguracion) {
+        conditions.push(`e.ID_CONFIGURACION = ?`);
+        params.push(idConfiguracion);
+    }
+
+    if (periodo) {
+        conditions.push(`va.PERIODO = ?`);
+        params.push(periodo);
+    }
+
+    if (nombreSede) {
+        conditions.push(`va.NOMBRE_SEDE = ?`);
+        params.push(nombreSede);
+    }
+
+    if (nomPrograma) {
+        conditions.push(`va.NOM_PROGRAMA = ?`);
+        params.push(nomPrograma);
+    }
+
+    if (semestre) {
+        conditions.push(`va.SEMESTRE = ?`);
+        params.push(semestre);
+    }
+
+    if (grupo) {
+        conditions.push(`va.GRUPO = ?`);
+        params.push(grupo);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const query = `
         WITH ASIGNATURA_SEMESTRES AS (
             SELECT 
@@ -32,7 +69,6 @@ const getDocentesAsignaturasModel = async () => {
             FROM vista_academica_insitus
             GROUP BY COD_ASIGNATURA, ID_DOCENTE, NOM_PROGRAMA
         )
-
         SELECT 
             ai.COD_ASIGNATURA,
             ai.ASIGNATURA,
@@ -40,6 +76,8 @@ const getDocentesAsignaturasModel = async () => {
             ai.DOCENTE,
             sp.SEMESTRE_PREDOMINANTE,
             pp.PROGRAMA_PREDOMINANTE,
+            va.NOMBRE_SEDE,
+            va.GRUPO,
             COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)) AS total_evaluaciones_esperadas,
             COUNT(DISTINCT CASE 
                 WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) 
@@ -72,7 +110,8 @@ const getDocentesAsignaturasModel = async () => {
         LEFT JOIN evaluacion_detalle ed 
             ON e.ID = ed.EVALUACION_ID
         LEFT JOIN ASIGNATURA_SEMESTRES ai 
-            ON va.COD_ASIGNATURA = ai.COD_ASIGNATURA AND va.ID_DOCENTE = ai.ID_DOCENTE
+            ON va.COD_ASIGNATURA = ai.COD_ASIGNATURA 
+            AND va.ID_DOCENTE = ai.ID_DOCENTE
         LEFT JOIN SEMESTRE_PREDOMINANTE sp 
             ON ai.COD_ASIGNATURA = sp.COD_ASIGNATURA 
             AND ai.ID_DOCENTE = sp.ID_DOCENTE 
@@ -81,18 +120,23 @@ const getDocentesAsignaturasModel = async () => {
             ON ai.COD_ASIGNATURA = pp.COD_ASIGNATURA 
             AND ai.ID_DOCENTE = pp.ID_DOCENTE 
             AND pp.rn = 1
+        ${whereClause}
         GROUP BY 
             ai.COD_ASIGNATURA,
             ai.ASIGNATURA,
             ai.ID_DOCENTE,
             ai.DOCENTE,
             sp.SEMESTRE_PREDOMINANTE,
-            pp.PROGRAMA_PREDOMINANTE
+            pp.PROGRAMA_PREDOMINANTE,
+            va.NOMBRE_SEDE,
+            va.GRUPO
         ORDER BY porcentaje_completado DESC;
     `;
-    const [result] = await pool.query(query);
+
+    const [result] = await pool.query(query, params);
     return result;
 };
+
 
 const getEstudiantesEvaluadosModel = async (idDocente, codAsignatura, grupo) => {
     const pool = await getPool();
