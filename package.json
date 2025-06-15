@@ -9,10 +9,10 @@
   "scripts": {
     "start": "cd frontend && npm start",
     "build": "cd frontend && npm run build",
-    "heroku-postbuild": "cd frontend && pnpm install --frozen-lockfile && pnpm run build"
+    "heroku-postbuild": "cd frontend && npm install --force && npm run build"
   },
   "engines": {
-    "node": ">=18.0.0",
+    "node": "18.x",
     "npm": ">=8.0.0"
   }
 }
