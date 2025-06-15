@@ -56,5 +56,12 @@ module.exports = {
     INVALID_ROLE: 'Rol inválido',
     ROLE_REQUIRED: 'Rol requerido',
     UNAUTHORIZED_ROLE: 'No tienes permiso para realizar esta acción'
-  }
+  },
+  DASHBOARD: {
+    FETCH_STATS_SUCCESS: 'Estadísticas del dashboard obtenidas con éxito.',
+    FETCH_ASPECTOS_SUCCESS: 'Promedios por aspecto obtenidos con éxito.',
+    FETCH_RANKING_SUCCESS: 'Ranking de docentes obtenido con éxito.',
+    FETCH_PODIO_SUCCESS: 'Podio de docentes obtenido con éxito.',
+    MISSING_ID_CONFIGURACION: 'ID_CONFIGURACION es obligatorio.',
+  },
 };

@@ -7,19 +7,35 @@ const {
 
 const getDocentesAsignaturasController = async (req, res) => {
     try {
-        const docentes = await getDocentesAsignaturasModel();
-        // Si la consulta se ejecutó correctamente, devolvemos los resultados
-        // incluso si está vacío, ya que es un resultado válido
+        const {
+            idConfiguracion,
+            periodo,
+            nombreSede,
+            nomPrograma,
+            semestre,
+            grupo
+        } = req.query;
+
+        // Todos los filtros son opcionales
+        const docentes = await getDocentesAsignaturasModel({
+            idConfiguracion,
+            periodo,
+            nombreSede,
+            nomPrograma,
+            semestre,
+            grupo
+        });
+
         res.json({
             success: true,
-            data: docentes || []
+            data: docentes || [],
         });
     } catch (error) {
         console.error('Error en getDocentesAsignaturasController:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
             error: 'Error al obtener la lista de docentes y asignaturas',
-            detalle: error.message 
+            detalle: error.message
         });
     }
 };

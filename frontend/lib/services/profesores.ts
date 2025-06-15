@@ -1,5 +1,6 @@
 import api from "@/lib/api"
 import { 
+  ProfesoresParams,
   AsignaturaDocente, 
   EvaluacionesEstudiantes, 
   AspectoPuntaje, 
@@ -8,9 +9,11 @@ import {
 } from "@/lib/types/profesores"
 
 export const profesoresService = {
-  async getAsignaturas(): Promise<AsignaturaDocente[]> {
+  async getAsignaturas(params?: ProfesoresParams): Promise<AsignaturaDocente[]> {
     try {
-      const response = await api.get<AsignaturasResponse>('/reportes/docentes/asignaturas')
+      const response = await api.get<AsignaturasResponse>('/reportes/docentes/asignaturas', {
+        params,
+      })
       return response.data.data
     } catch (error) {
       console.error('Error al obtener asignaturas:', error)

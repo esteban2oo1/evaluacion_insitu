@@ -130,3 +130,165 @@
  *       500:
  *         description: Server error
  */
+
+/**
+ * @swagger
+ * /academica/semestres:
+ *   get:
+ *     summary: Get all distinct semesters
+ *     tags: [Vista Academica]
+ *     responses:
+ *       200:
+ *         description: List of distinct semesters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                     example: "2024-1"
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /academica/periodos:
+ *   get:
+ *     summary: Get all distinct periods
+ *     tags: [Vista Academica]
+ *     responses:
+ *       200:
+ *         description: List of distinct periods
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                     example: "BOG"
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /academica/sedes:
+ *   get:
+ *     summary: Get all distinct sede
+ *     tags: [Vista Academica]
+ *     responses:
+ *       200:
+ *         description: List of distinct sedes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                     example: "BOG"
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /academica/programas:
+ *   get:
+ *     summary: Get all distinct programs
+ *     tags: [Vista Academica]
+ *     responses:
+ *       200:
+ *         description: List of distinct programs
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                     example: "Ingeniería de Sistemas"
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /academica/grupos:
+ *   get:
+ *     summary: Get all distinct groups
+ *     tags: [Vista Academica]
+ *     responses:
+ *       200:
+ *         description: List of distinct groups
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                     example: "Grupo A"
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /academica/{id}:
+ *   get:
+ *     summary: Get academic data by ID
+ *     tags: [Vista Academica]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: ID del registro académico
+ *     responses:
+ *       200:
+ *         description: Academic data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   $ref: '#/components/schemas/VistaAcademica'
+ *       404:
+ *         description: Academic data not found
+ *       500:
+ *         description: Server error
+ */
