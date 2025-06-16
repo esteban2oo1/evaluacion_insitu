@@ -1,3 +1,8 @@
+export interface Roles {
+  ID: number;
+  NOMBRE_ROL: string;
+}
+
 export interface AspectoEvaluacion {
   ID: number;
   ETIQUETA: string;

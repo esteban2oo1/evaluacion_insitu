@@ -1,7 +1,9 @@
-const { getPool } = require('../../../../db');
+const { getPool, getRemotePool } = require('../../../../db');
 
 const getDashboardStats = async ({ idConfiguracion, periodo, nombreSede, nomPrograma, semestre, grupo}) => {
-  const pool = await getPool();
+  // Obtener ambos pools
+  const pool = await getPool(); // Para evaluaciones y evaluacion_detalle
+  const remotePool = await getRemotePool(); // Para vista_academica_insitus
   
   // Construir condiciones WHERE dinámicamente
   const buildWhereClause = (alias = 'va') => {
@@ -47,354 +49,471 @@ const getDashboardStats = async ({ idConfiguracion, periodo, nombreSede, nomProg
     };
   };
 
-  // Construir las condiciones para cada parte de la consulta
-  const mainWhere = buildWhereClause('va');
-  const subQuery1Where = buildWhereClause('va2');
-  const subQuery2Where = buildWhereClause();
-  const subQuery3Where = buildWhereClause('va3');
-  const subQuery4Where = buildWhereClause();
-
-  const query = `
+  // Primero obtenemos los datos académicos del remote pool
+  const academicWhere = buildWhereClause('va');
+  
+  const academicDataQuery = `
     SELECT 
-      COUNT(DISTINCT va.ID_ESTUDIANTE) AS total_estudiantes,
-      COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)) AS total_evaluaciones,
-      COUNT(DISTINCT CASE 
-          WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)
-      END) AS evaluaciones_completadas,
-      COUNT(DISTINCT CASE 
-          WHEN ed.ID IS NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)
-      END) AS evaluaciones_pendientes,
-      ROUND(
-          100.0 * COUNT(DISTINCT CASE 
-              WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)
-          END) 
-          / NULLIF(COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)), 0),
-          2
-      ) AS porcentaje_completado,
-
-      (
-          SELECT COUNT(DISTINCT ID_DOCENTE)
-          FROM (
-              SELECT 
-                  va2.ID_DOCENTE,
-                  COUNT(DISTINCT CONCAT(va2.ID_ESTUDIANTE, '-', va2.COD_ASIGNATURA)) AS total,
-                  COUNT(DISTINCT CASE 
-                      WHEN ed2.ID IS NOT NULL THEN CONCAT(va2.ID_ESTUDIANTE, '-', va2.COD_ASIGNATURA) 
-                  END) AS completadas
-              FROM vista_academica_insitus va2
-              LEFT JOIN evaluaciones e2 
-                  ON va2.ID_ESTUDIANTE = e2.DOCUMENTO_ESTUDIANTE 
-                  AND va2.COD_ASIGNATURA = e2.CODIGO_MATERIA
-                  AND e2.ID_CONFIGURACION = ?
-              LEFT JOIN evaluacion_detalle ed2 
-                  ON e2.ID = ed2.EVALUACION_ID
-              ${subQuery1Where.clause}
-              GROUP BY va2.ID_DOCENTE
-              HAVING total = completadas
-          ) docentes_completos
-      ) AS docentes_evaluados,
-
-      (
-          SELECT COUNT(DISTINCT ID_DOCENTE)
-          FROM vista_academica_insitus
-          ${subQuery2Where.clause}
-      ) AS total_docentes,
-
-      ROUND(
-          100.0 * (
-              SELECT COUNT(DISTINCT ID_DOCENTE)
-              FROM (
-                  SELECT 
-                      va3.ID_DOCENTE,
-                      COUNT(DISTINCT CONCAT(va3.ID_ESTUDIANTE, '-', va3.COD_ASIGNATURA)) AS total,
-                      COUNT(DISTINCT CASE 
-                          WHEN ed3.ID IS NOT NULL THEN CONCAT(va3.ID_ESTUDIANTE, '-', va3.COD_ASIGNATURA) 
-                      END) AS completadas
-                  FROM vista_academica_insitus va3
-                  LEFT JOIN evaluaciones e3 
-                      ON va3.ID_ESTUDIANTE = e3.DOCUMENTO_ESTUDIANTE 
-                      AND va3.COD_ASIGNATURA = e3.CODIGO_MATERIA
-                      AND e3.ID_CONFIGURACION = ?
-                  LEFT JOIN evaluacion_detalle ed3 
-                      ON e3.ID = ed3.EVALUACION_ID
-                  ${subQuery3Where.clause}
-                  GROUP BY va3.ID_DOCENTE
-                  HAVING total = completadas
-              ) docentes_completos
-          )
-          / NULLIF((
-              SELECT COUNT(DISTINCT ID_DOCENTE)
-              FROM vista_academica_insitus
-              ${subQuery4Where.clause}
-          ), 0),
-          2
-      ) AS porcentaje_docentes_evaluados
-
+      ID_ESTUDIANTE,
+      COD_ASIGNATURA,
+      ID_DOCENTE
     FROM vista_academica_insitus va
-    LEFT JOIN evaluaciones e 
-        ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE 
-        AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
-        AND e.ID_CONFIGURACION = ?
-    LEFT JOIN evaluacion_detalle ed 
-        ON e.ID = ed.EVALUACION_ID
-    ${mainWhere.clause};
+    ${academicWhere.clause}
   `;
-
-  // Construir array de valores para los parámetros
-  const values = [
-    idConfiguracion, // Para subQuery1
-    ...subQuery1Where.params,
-    ...subQuery2Where.params,
-    idConfiguracion, // Para subQuery3
-    ...subQuery3Where.params,
-    ...subQuery4Where.params,
-    idConfiguracion, // Para consulta principal
-    ...mainWhere.params
-  ];
-
-  const [rows] = await pool.query(query, values);
-  return rows[0];
+  
+  const [academicData] = await remotePool.query(academicDataQuery, academicWhere.params);
+  
+  // Si no hay datos académicos, retornar estadísticas vacías
+  if (academicData.length === 0) {
+    return {
+      total_estudiantes: 0,
+      total_evaluaciones: 0,
+      evaluaciones_completadas: 0,
+      evaluaciones_pendientes: 0,
+      porcentaje_completado: 0,
+      docentes_evaluados: 0,
+      total_docentes: 0,
+      porcentaje_docentes_evaluados: 0
+    };
+  }
+  
+  // Crear mapas para facilitar el procesamiento
+  const estudiantes = new Set();
+  const evaluaciones = new Set();
+  const docentes = new Set();
+  const estudianteAsignatura = [];
+  
+  academicData.forEach(row => {
+    estudiantes.add(row.ID_ESTUDIANTE);
+    docentes.add(row.ID_DOCENTE);
+    const evalKey = `${row.ID_ESTUDIANTE}-${row.COD_ASIGNATURA}`;
+    evaluaciones.add(evalKey);
+    estudianteAsignatura.push({
+      estudiante: row.ID_ESTUDIANTE,
+      asignatura: row.COD_ASIGNATURA,
+      docente: row.ID_DOCENTE,
+      key: evalKey
+    });
+  });
+  
+  // Ahora consultamos las evaluaciones del pool principal
+  const evaluacionesQuery = `
+    SELECT 
+      e.DOCUMENTO_ESTUDIANTE,
+      e.CODIGO_MATERIA,
+      ed.ID as detalle_id
+    FROM evaluaciones e
+    LEFT JOIN evaluacion_detalle ed ON e.ID = ed.EVALUACION_ID
+    WHERE e.ID_CONFIGURACION = ?
+      AND CONCAT(e.DOCUMENTO_ESTUDIANTE, '-', e.CODIGO_MATERIA) IN (${Array(evaluaciones.size).fill('?').join(',')})
+  `;
+  
+  const evaluacionesParams = [idConfiguracion, ...Array.from(evaluaciones)];
+  const [evaluacionesData] = await pool.query(evaluacionesQuery, evaluacionesParams);
+  
+  // Procesar resultados de evaluaciones
+  const evaluacionesCompletadas = new Set();
+  const evaluacionesPendientes = new Set();
+  
+  evaluacionesData.forEach(row => {
+    const evalKey = `${row.DOCUMENTO_ESTUDIANTE}-${row.CODIGO_MATERIA}`;
+    if (row.detalle_id) {
+      evaluacionesCompletadas.add(evalKey);
+    }
+  });
+  
+  // Identificar evaluaciones pendientes
+  evaluaciones.forEach(evalKey => {
+    if (!evaluacionesCompletadas.has(evalKey)) {
+      evaluacionesPendientes.add(evalKey);
+    }
+  });
+  
+  // Calcular docentes evaluados
+  const docentesEvaluados = new Set();
+  
+  docentes.forEach(docente => {
+    const evaluacionesDocente = estudianteAsignatura.filter(ea => ea.docente === docente);
+    const totalEvaluacionesDocente = evaluacionesDocente.length;
+    const completadasDocente = evaluacionesDocente.filter(ea => 
+      evaluacionesCompletadas.has(ea.key)
+    ).length;
+    
+    if (totalEvaluacionesDocente > 0 && totalEvaluacionesDocente === completadasDocente) {
+      docentesEvaluados.add(docente);
+    }
+  });
+  
+  // Calcular estadísticas finales
+  const totalEstudiantes = estudiantes.size;
+  const totalEvaluaciones = evaluaciones.size;
+  const totalEvaluacionesCompletadas = evaluacionesCompletadas.size;
+  const totalEvaluacionesPendientes = evaluacionesPendientes.size;
+  const porcentajeCompletado = totalEvaluaciones > 0 ? 
+    Math.round((totalEvaluacionesCompletadas / totalEvaluaciones) * 100 * 100) / 100 : 0;
+  
+  const totalDocentes = docentes.size;
+  const totalDocentesEvaluados = docentesEvaluados.size;
+  const porcentajeDocentesEvaluados = totalDocentes > 0 ? 
+    Math.round((totalDocentesEvaluados / totalDocentes) * 100 * 100) / 100 : 0;
+  
+  return {
+    total_estudiantes: totalEstudiantes,
+    total_evaluaciones: totalEvaluaciones,
+    evaluaciones_completadas: totalEvaluacionesCompletadas,
+    evaluaciones_pendientes: totalEvaluacionesPendientes,
+    porcentaje_completado: porcentajeCompletado,
+    docentes_evaluados: totalDocentesEvaluados,
+    total_docentes: totalDocentes,
+    porcentaje_docentes_evaluados: porcentajeDocentesEvaluados
+  };
 };
 
 const getAspectosPromedio = async ({ idConfiguracion, periodo, nombreSede, nomPrograma, semestre, grupo }) => {
     const pool = await getPool();
-
-    // Construir condiciones WHERE dinámicamente
-    const buildWhereClause = (alias = 'va') => {
+    const remotePool = await getRemotePool();
+    
+    // Construir condiciones WHERE dinámicamente para vista_academica_insitus
+    const buildWhereClause = () => {
         let conditions = [];
         let params = [];
-
-        // 1. ID_CONFIGURACION (siempre presente)
-        conditions.push(`e.ID_CONFIGURACION = ?`);
-        params.push(idConfiguracion);
-
-        // 2. PERIODO
+        
+        // 1. PERIODO
         if (periodo) {
-            conditions.push(`${alias}.PERIODO = ?`);
+            conditions.push(`PERIODO = ?`);
             params.push(periodo);
         }
-
-        // 3. NOMBRE_SEDE
+        
+        // 2. NOMBRE_SEDE
         if (nombreSede) {
-            conditions.push(`${alias}.NOMBRE_SEDE = ?`);
+            conditions.push(`NOMBRE_SEDE = ?`);
             params.push(nombreSede);
         }
-
-        // 4. NOM_PROGRAMA
+        
+        // 3. NOM_PROGRAMA
         if (nomPrograma) {
-            conditions.push(`${alias}.NOM_PROGRAMA = ?`);
+            conditions.push(`NOM_PROGRAMA = ?`);
             params.push(nomPrograma);
         }
-
-        // 5. SEMESTRE
+        
+        // 4. SEMESTRE
         if (semestre) {
-            conditions.push(`${alias}.SEMESTRE = ?`);
+            conditions.push(`SEMESTRE = ?`);
             params.push(semestre);
         }
-
-        // 6. GRUPO
+        
+        // 5. GRUPO
         if (grupo) {
-            conditions.push(`${alias}.GRUPO = ?`);
+            conditions.push(`GRUPO = ?`);
             params.push(grupo);
         }
-
+        
         return {
-            clause: conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '',
+            clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
             params
         };
     };
 
-    // Construir la condición WHERE para la consulta principal
-    const mainWhere = buildWhereClause('va');
-
-    // Consulta SQL con filtros dinámicos
-    const query = `
+    // Paso 1: Obtener datos filtrados de vista_academica_insitus (usando remotePool)
+    const vistaWhere = buildWhereClause();
+    const vistaQuery = `
+        SELECT DISTINCT ID_ESTUDIANTE, COD_ASIGNATURA
+        FROM vista_academica_insitus
+        ${vistaWhere.clause}
+    `;
+    
+    const [vistaData] = await remotePool.query(vistaQuery, vistaWhere.params);
+    
+    // Si no hay datos en vista_academica_insitus con los filtros, retornar array vacío
+    if (vistaData.length === 0) {
+        return [];
+    }
+    
+    // Crear placeholders para la consulta IN
+    const placeholders = vistaData.map(() => '(?, ?)').join(', ');
+    const vistaParams = vistaData.flatMap(row => [row.ID_ESTUDIANTE, row.COD_ASIGNATURA]);
+    
+    // Paso 2: Consulta principal - PROMEDIO GENERAL POR ASPECTO (todos los docentes)
+    const mainQuery = `
         SELECT 
             ae.ETIQUETA AS ASPECTO,
             ROUND(
-                SUM(cv.PUNTAJE) / 
-                (
-                    COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)) *
-                    (
-                        SELECT COUNT(*) 
-                        FROM configuracion_aspecto 
-                        WHERE ACTIVO = TRUE 
-                          AND CONFIGURACION_EVALUACION_ID = ?
-                    )
-                ), 
-            2) AS PROMEDIO_GENERAL
+                AVG(cv.PUNTAJE), 2
+            ) AS PROMEDIO_GENERAL
         FROM evaluaciones e
         JOIN configuracion_aspecto ca 
             ON e.ID_CONFIGURACION = ca.CONFIGURACION_EVALUACION_ID
         JOIN aspectos_evaluacion ae 
             ON ca.ASPECTO_ID = ae.ID
         JOIN evaluacion_detalle ed 
-            ON e.ID = ed.EVALUACION_ID
+            ON e.ID = ed.EVALUACION_ID AND ed.ASPECTO_ID = ca.ID
         JOIN configuracion_valoracion cv 
             ON ed.VALORACION_ID = cv.VALORACION_ID
-        JOIN vista_academica_insitus va 
-            ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE
-            AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
         WHERE ca.ACTIVO = TRUE
           AND cv.ACTIVO = TRUE
           AND e.ID_CONFIGURACION = ?
-          ${mainWhere.clause}
+          AND (e.DOCUMENTO_ESTUDIANTE, e.CODIGO_MATERIA) IN (${placeholders})
         GROUP BY ae.ID, ae.ETIQUETA 
         ORDER BY ae.ID;
     `;
-
-    // Construir los valores de los parámetros para la consulta
-    const values = [
-        idConfiguracion,  // Para el subquery COUNT(*) de configuracion_aspecto
+    
+    // Construir parámetros para la consulta principal
+    const mainParams = [
         idConfiguracion,  // Para la consulta principal (e.ID_CONFIGURACION)
-        ...mainWhere.params
+        ...vistaParams    // Parámetros para la cláusula IN
     ];
-
-    const [aspectos] = await pool.query(query, values);
+    
+    const [aspectos] = await pool.query(mainQuery, mainParams);
     return aspectos;
 };
 
 const getRankingDocentes = async ({ idConfiguracion, periodo, nombreSede, nomPrograma, semestre, grupo }) => {
   const pool = await getPool();
-
-  // Construir condiciones WHERE dinámicamente para la consulta final
-  const buildWhereClause = () => {
-    let conditions = [];
-    let params = [];
-    
-    // Siempre incluir la condición de TOTAL_RESPUESTAS > 0
-    conditions.push("TOTAL_RESPUESTAS > 0");
-    
-    // 2. PERIODO
-    if (periodo) {
-      conditions.push(`PERIODO = ?`);
-      params.push(periodo);
-    }
-    
-    // 3. NOMBRE_SEDE
-    if (nombreSede) {
-      conditions.push(`NOMBRE_SEDE = ?`);
-      params.push(nombreSede);
-    }
-    
-    // 4. NOM_PROGRAMA
-    if (nomPrograma) {
-      conditions.push(`NOM_PROGRAMA = ?`);
-      params.push(nomPrograma);
-    }
-    
-    // 5. SEMESTRE
-    if (semestre) {
-      conditions.push(`SEMESTRE = ?`);
-      params.push(semestre);
-    }
-    
-    // 6. GRUPO
-    if (grupo) {
-      conditions.push(`GRUPO = ?`);
-      params.push(grupo);
-    }
-    
-    return {
-      clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
-      params
-    };
-  };
-
-  const finalWhere = buildWhereClause();
-
-  // Consulta SQL
-  const query = `
-    WITH DatosCompletos AS (
-      SELECT 
-          va.ID_DOCENTE, 
-          va.DOCENTE, 
-          COUNT(DISTINCT CONCAT(va.COD_ASIGNATURA)) AS evaluaciones_esperadas,
-  
-          -- Evaluaciones únicas por estudiante y asignatura
-          COUNT(DISTINCT CASE 
-              WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) 
-          END) AS evaluaciones_realizadas,
-  
-          -- Pendientes = esperadas - realizadas
-          COUNT(DISTINCT CONCAT(va.COD_ASIGNATURA)) - COUNT(DISTINCT CASE 
-              WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) 
-          END) AS evaluaciones_pendientes,
-  
-          -- Puntaje total obtenido por el docente
-          IFNULL(SUM(cv.PUNTAJE), 0) AS TOTAL_PUNTAJE,
-  
-          -- Total de respuestas registradas
-          IFNULL(COUNT(ed.ID), 0) AS TOTAL_RESPUESTAS,
-  
-          -- Total de estudiantes únicos
-          IFNULL(COUNT(DISTINCT va.ID_ESTUDIANTE), 0) AS TOTAL_ESTUDIANTES,
-  
-          -- PROMEDIO GENERAL: puntaje total / (evaluaciones realizadas × aspectos activos)
-          IFNULL(ROUND(SUM(cv.PUNTAJE) / 
-              (
-                  COUNT(DISTINCT CASE 
-                      WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) 
-                  END)
-                  * (SELECT COUNT(*) 
-                     FROM configuracion_aspecto 
-                     WHERE ACTIVO = TRUE AND CONFIGURACION_EVALUACION_ID = 1)
-              ), 2), 0.00) AS PROMEDIO_GENERAL,
-  
-          e.ID_CONFIGURACION,
-          va.PERIODO,
-          va.NOMBRE_SEDE, 
-          va.NOM_PROGRAMA,
-          va.SEMESTRE,
-          va.GRUPO
-      FROM vista_academica_insitus va
-      LEFT JOIN evaluaciones e 
-          ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE 
-          AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
-      LEFT JOIN evaluacion_detalle ed 
-          ON e.ID = ed.EVALUACION_ID
-      LEFT JOIN configuracion_valoracion cv 
-          ON ed.VALORACION_ID = cv.VALORACION_ID
-      WHERE e.ID_CONFIGURACION = ?
-      GROUP BY 
-          va.ID_DOCENTE, 
-          va.DOCENTE, 
-          e.ID_CONFIGURACION, 
-          va.PERIODO,
-          va.NOMBRE_SEDE, 
-          va.NOM_PROGRAMA, 
-          va.SEMESTRE, 
-          va.GRUPO
-    )
-  
-    SELECT 
-        ID_DOCENTE, 
-        DOCENTE, 
-        TOTAL_PUNTAJE,
-        PROMEDIO_GENERAL,
-        TOTAL_RESPUESTAS,
-        evaluaciones_esperadas,
-        evaluaciones_realizadas,
-        evaluaciones_pendientes,
-  
-        -- Promedio de respuestas por estudiante
-        IFNULL(TOTAL_RESPUESTAS / NULLIF(TOTAL_ESTUDIANTES, 0), 0) AS RESPUESTAS_POR_ESTUDIANTE,
-  
-        -- Índice de eficiencia (respuestas / evaluaciones realizadas)
-        IFNULL(TOTAL_RESPUESTAS / NULLIF(evaluaciones_realizadas, 0), 0) AS EFICIENCIA_RESPUESTAS
-  
-    FROM DatosCompletos
-    ${finalWhere.clause}
-    ORDER BY 
-        RESPUESTAS_POR_ESTUDIANTE DESC, 
-        EFICIENCIA_RESPUESTAS DESC, 
-        ID_DOCENTE;
-  `;
+  const remotePool = await getRemotePool();
 
   try {
-    const values = [idConfiguracion, ...finalWhere.params];
-    const [ranking] = await pool.query(query, values);
+    // Construir condiciones WHERE dinámicamente
+    const buildWhereClause = (alias = 'va') => {
+      let conditions = [];
+      let params = [];
+      
+      // 1. PERIODO
+      if (periodo) {
+        conditions.push(`${alias}.PERIODO = ?`);
+        params.push(periodo);
+      }
+      
+      // 2. NOMBRE_SEDE
+      if (nombreSede) {
+        conditions.push(`${alias}.NOMBRE_SEDE = ?`);
+        params.push(nombreSede);
+      }
+      
+      // 3. NOM_PROGRAMA
+      if (nomPrograma) {
+        conditions.push(`${alias}.NOM_PROGRAMA = ?`);
+        params.push(nomPrograma);
+      }
+      
+      // 4. SEMESTRE
+      if (semestre) {
+        conditions.push(`${alias}.SEMESTRE = ?`);
+        params.push(semestre);
+      }
+      
+      // 5. GRUPO
+      if (grupo) {
+        conditions.push(`${alias}.GRUPO = ?`);
+        params.push(grupo);
+      }
+      
+      return {
+        clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+        params
+      };
+    };
+
+    const vistaWhereClause = buildWhereClause('va');
+
+    // 1. Obtener datos de vista_academica_insitus con filtros
+    const vistaQuery = `
+      SELECT 
+        ID_DOCENTE, 
+        DOCENTE, 
+        ID_ESTUDIANTE,
+        COD_ASIGNATURA,
+        PERIODO,
+        NOMBRE_SEDE, 
+        NOM_PROGRAMA,
+        SEMESTRE,
+        GRUPO
+      FROM vista_academica_insitus va
+      ${vistaWhereClause.clause}
+    `;
+
+    console.log('Vista Query:', vistaQuery);
+    console.log('Vista Params:', vistaWhereClause.params);
+
+    const [vistaData] = await remotePool.query(vistaQuery, vistaWhereClause.params);
+
+    if (vistaData.length === 0) {
+      console.log('No se encontraron datos en vista_academica_insitus');
+      return [];
+    }
+
+    console.log(`Se encontraron ${vistaData.length} registros en vista_academica_insitus`);
+
+    // 2. Crear lista de estudiantes y asignaturas únicas para buscar evaluaciones
+    const estudiantesAsignaturas = vistaData.map(row => ({
+      estudiante: row.ID_ESTUDIANTE,
+      asignatura: row.COD_ASIGNATURA
+    }));
+
+    // Eliminar duplicados
+    const estudiantesAsignaturasUnicos = estudiantesAsignaturas.filter((item, index, self) =>
+      index === self.findIndex(t => t.estudiante === item.estudiante && t.asignatura === item.asignatura)
+    );
+
+    console.log(`Combinaciones únicas estudiante-asignatura: ${estudiantesAsignaturasUnicos.length}`);
+
+    // 3. Obtener evaluaciones existentes con sus puntajes
+    if (estudiantesAsignaturasUnicos.length === 0) {
+      return [];
+    }
+
+    const placeholders = estudiantesAsignaturasUnicos.map(() => '(?, ?)').join(', ');
+    const evaluacionesParams = [];
+    estudiantesAsignaturasUnicos.forEach(ea => {
+      evaluacionesParams.push(ea.estudiante, ea.asignatura);
+    });
+
+    const evaluacionesQuery = `
+      SELECT 
+        e.DOCUMENTO_ESTUDIANTE,
+        e.CODIGO_MATERIA,
+        cv.PUNTAJE,
+        ca.ASPECTO_ID
+      FROM evaluaciones e
+      JOIN evaluacion_detalle ed ON e.ID = ed.EVALUACION_ID
+      JOIN configuracion_valoracion cv ON ed.VALORACION_ID = cv.VALORACION_ID
+      JOIN configuracion_aspecto ca ON ed.ASPECTO_ID = ca.ID
+      WHERE e.ID_CONFIGURACION = ?
+        AND (e.DOCUMENTO_ESTUDIANTE, e.CODIGO_MATERIA) IN (${placeholders})
+        AND ca.ACTIVO = TRUE
+        AND cv.ACTIVO = TRUE
+    `;
+
+    console.log('Evaluaciones Query:', evaluacionesQuery);
+    const [evaluacionesData] = await pool.query(evaluacionesQuery, [idConfiguracion, ...evaluacionesParams]);
+    console.log(`Se encontraron ${evaluacionesData.length} respuestas de evaluación`);
+
+    // 4. Procesar datos y calcular métricas por docente
+    const docentesMap = new Map();
+
+    // Inicializar estructura de datos por docente
+    vistaData.forEach(row => {
+      const key = `${row.ID_DOCENTE}`;
+      if (!docentesMap.has(key)) {
+        docentesMap.set(key, {
+          ID_DOCENTE: row.ID_DOCENTE,
+          DOCENTE: row.DOCENTE,
+          PERIODO: row.PERIODO,
+          NOMBRE_SEDE: row.NOMBRE_SEDE,
+          NOM_PROGRAMA: row.NOM_PROGRAMA,
+          SEMESTRE: row.SEMESTRE,
+          GRUPO: row.GRUPO,
+          asignaturas: new Set(),
+          estudiantes: new Set(),
+          evaluaciones_esperadas: new Set(),
+          evaluaciones_realizadas: new Set(),
+          puntajes: [], // Array para almacenar todos los puntajes del docente
+          total_respuestas: 0,
+          estudiante_asignatura_docente: new Map()
+        });
+      }
+
+      const docente = docentesMap.get(key);
+      docente.asignaturas.add(row.COD_ASIGNATURA);
+      docente.estudiantes.add(row.ID_ESTUDIANTE);
+      
+      const evaluacionKey = `${row.ID_ESTUDIANTE}-${row.COD_ASIGNATURA}`;
+      docente.evaluaciones_esperadas.add(evaluacionKey);
+      docente.estudiante_asignatura_docente.set(evaluacionKey, true);
+    });
+
+    console.log('Docentes inicializados:', docentesMap.size);
+
+    // Procesar evaluaciones realizadas y asociarlas con docentes
+    evaluacionesData.forEach(eval => {
+      const estudianteAsignatura = `${eval.DOCUMENTO_ESTUDIANTE}-${eval.CODIGO_MATERIA}`;
+      
+      // Buscar qué docente corresponde a esta combinación estudiante-asignatura
+      for (let [docenteKey, docente] of docentesMap) {
+        if (docente.estudiante_asignatura_docente.has(estudianteAsignatura)) {
+          docente.evaluaciones_realizadas.add(estudianteAsignatura);
+          docente.total_respuestas++;
+          
+          // Agregar puntaje al array si es válido
+          const puntaje = parseFloat(eval.PUNTAJE);
+          if (!isNaN(puntaje)) {
+            docente.puntajes.push(puntaje);
+          }
+          
+          break; // Solo debe pertenecer a un docente
+        }
+      }
+    });
+
+    // Debug: mostrar datos procesados
+    for (let [key, docente] of docentesMap) {
+      console.log(`Docente ${docente.DOCENTE}:`, {
+        total_puntajes: docente.puntajes.length,
+        total_respuestas: docente.total_respuestas,
+        evaluaciones_esperadas: docente.evaluaciones_esperadas.size,
+        evaluaciones_realizadas: docente.evaluaciones_realizadas.size
+      });
+    }
+
+    // 5. Convertir a array y calcular métricas finales
+    const ranking = Array.from(docentesMap.values())
+      .map(docente => {
+        const evaluaciones_esperadas = docente.evaluaciones_esperadas.size;
+        const evaluaciones_realizadas = docente.evaluaciones_realizadas.size;
+        const evaluaciones_pendientes = evaluaciones_esperadas - evaluaciones_realizadas;
+        const total_estudiantes = docente.estudiantes.size;
+        const total_asignaturas = docente.asignaturas.size;
+        
+        // Calcular promedio individual del docente: promedio de todos sus puntajes
+        let promedio_general = 0.00;
+        if (docente.puntajes.length > 0) {
+          const suma_puntajes = docente.puntajes.reduce((sum, puntaje) => sum + puntaje, 0);
+          promedio_general = parseFloat((suma_puntajes / docente.puntajes.length).toFixed(2));
+        }
+        
+        // Calcular respuestas por estudiante
+        const respuestas_por_estudiante = total_estudiantes > 0 
+          ? parseFloat((docente.total_respuestas / total_estudiantes).toFixed(2))
+          : 0;
+        
+        // Calcular eficiencia de respuestas (respuestas por evaluación realizada)
+        const eficiencia_respuestas = evaluaciones_realizadas > 0 
+          ? parseFloat((docente.total_respuestas / evaluaciones_realizadas).toFixed(2))
+          : 0;
+
+        return {
+          ID_DOCENTE: docente.ID_DOCENTE,
+          DOCENTE: docente.DOCENTE,
+          PERIODO: docente.PERIODO,
+          NOMBRE_SEDE: docente.NOMBRE_SEDE,
+          NOM_PROGRAMA: docente.NOM_PROGRAMA,
+          SEMESTRE: docente.SEMESTRE,
+          GRUPO: docente.GRUPO,
+          TOTAL_ESTUDIANTES: total_estudiantes,
+          TOTAL_ASIGNATURAS: total_asignaturas,
+          PROMEDIO_GENERAL: promedio_general, // Promedio individual del docente
+          TOTAL_RESPUESTAS: docente.total_respuestas,
+          EVALUACIONES_ESPERADAS: evaluaciones_esperadas,
+          EVALUACIONES_REALIZADAS: evaluaciones_realizadas,
+          EVALUACIONES_PENDIENTES: evaluaciones_pendientes,
+          RESPUESTAS_POR_ESTUDIANTE: respuestas_por_estudiante,
+          EFICIENCIA_RESPUESTAS: eficiencia_respuestas
+        };
+      })
+      .filter(docente => docente.TOTAL_RESPUESTAS > 0) // Solo docentes con respuestas > 0
+      .sort((a, b) => {
+        // Ordenar por PROMEDIO_GENERAL DESC, luego RESPUESTAS_POR_ESTUDIANTE DESC, luego ID_DOCENTE ASC
+        if (b.PROMEDIO_GENERAL !== a.PROMEDIO_GENERAL) {
+          return b.PROMEDIO_GENERAL - a.PROMEDIO_GENERAL;
+        }
+        if (b.RESPUESTAS_POR_ESTUDIANTE !== a.RESPUESTAS_POR_ESTUDIANTE) {
+          return b.RESPUESTAS_POR_ESTUDIANTE - a.RESPUESTAS_POR_ESTUDIANTE;
+        }
+        return a.ID_DOCENTE - b.ID_DOCENTE;
+      });
+
+    console.log(`Ranking final: ${ranking.length} docentes`);
     return ranking;
+
   } catch (error) {
     console.error("Error al obtener el ranking de docentes: ", error);
     throw error;
@@ -402,163 +521,257 @@ const getRankingDocentes = async ({ idConfiguracion, periodo, nombreSede, nomPro
 };
 
 const getPodioDocentes = async ({ idConfiguracion, periodo, nombreSede, nomPrograma, semestre, grupo }) => {
-    const pool = await getPool();
+  const pool = await getPool();
+  const remotePool = await getRemotePool();
 
+  try {
     // Construir condiciones WHERE dinámicamente
     const buildWhereClause = (alias = 'va') => {
-        let conditions = [];
-        let params = [];
+      let conditions = [];
+      let params = [];
+      
+      // 1. PERIODO
+      if (periodo) {
+        conditions.push(`${alias}.PERIODO = ?`);
+        params.push(periodo);
+      }
+      
+      // 2. NOMBRE_SEDE
+      if (nombreSede) {
+        conditions.push(`${alias}.NOMBRE_SEDE = ?`);
+        params.push(nombreSede);
+      }
+      
+      // 3. NOM_PROGRAMA
+      if (nomPrograma) {
+        conditions.push(`${alias}.NOM_PROGRAMA = ?`);
+        params.push(nomPrograma);
+      }
+      
+      // 4. SEMESTRE
+      if (semestre) {
+        conditions.push(`${alias}.SEMESTRE = ?`);
+        params.push(semestre);
+      }
+      
+      // 5. GRUPO
+      if (grupo) {
+        conditions.push(`${alias}.GRUPO = ?`);
+        params.push(grupo);
+      }
+      
+      return {
+        clause: conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '',
+        params
+      };
+    };
 
-        // 1. ID_CONFIGURACION (siempre presente)
-        conditions.push(`e.ID_CONFIGURACION = ?`);
-        params.push(idConfiguracion);
+    const vistaWhereClause = buildWhereClause('va');
 
-        // 2. PERIODO
-        if (periodo) {
-            conditions.push(`${alias}.PERIODO = ?`);
-            params.push(periodo);
+    // 1. Obtener datos de vista_academica_insitus con filtros
+    const vistaQuery = `
+      SELECT 
+        ID_DOCENTE, 
+        DOCENTE, 
+        ID_ESTUDIANTE,
+        COD_ASIGNATURA,
+        PERIODO,
+        NOMBRE_SEDE, 
+        NOM_PROGRAMA,
+        SEMESTRE,
+        GRUPO
+      FROM vista_academica_insitus va
+      ${vistaWhereClause.clause}
+    `;
+
+    console.log('Vista Query (Podio):', vistaQuery);
+    const [vistaData] = await remotePool.query(vistaQuery, vistaWhereClause.params);
+
+    if (vistaData.length === 0) {
+      console.log('No se encontraron datos en vista_academica_insitus para podio');
+      return [];
+    }
+
+    console.log(`Se encontraron ${vistaData.length} registros para podio`);
+
+    // 2. Crear lista de estudiantes y asignaturas únicas para buscar evaluaciones
+    const estudiantesAsignaturas = vistaData.map(row => ({
+      estudiante: row.ID_ESTUDIANTE,
+      asignatura: row.COD_ASIGNATURA
+    }));
+
+    // Eliminar duplicados
+    const estudiantesAsignaturasUnicos = estudiantesAsignaturas.filter((item, index, self) =>
+      index === self.findIndex(t => t.estudiante === item.estudiante && t.asignatura === item.asignatura)
+    );
+
+    // 3. Obtener evaluaciones existentes
+    if (estudiantesAsignaturasUnicos.length === 0) {
+      return [];
+    }
+
+    const placeholders = estudiantesAsignaturasUnicos.map(() => '(?, ?)').join(', ');
+    const evaluacionesParams = [];
+    estudiantesAsignaturasUnicos.forEach(ea => {
+      evaluacionesParams.push(ea.estudiante, ea.asignatura);
+    });
+
+    const evaluacionesQuery = `
+      SELECT 
+        e.DOCUMENTO_ESTUDIANTE,
+        e.CODIGO_MATERIA,
+        cv.PUNTAJE,
+        ca.ASPECTO_ID
+      FROM evaluaciones e
+      JOIN evaluacion_detalle ed ON e.ID = ed.EVALUACION_ID
+      JOIN configuracion_valoracion cv ON ed.VALORACION_ID = cv.VALORACION_ID
+      JOIN configuracion_aspecto ca ON ed.ASPECTO_ID = ca.ID
+      WHERE e.ID_CONFIGURACION = ?
+        AND (e.DOCUMENTO_ESTUDIANTE, e.CODIGO_MATERIA) IN (${placeholders})
+        AND ca.ACTIVO = TRUE
+        AND cv.ACTIVO = TRUE
+    `;
+
+    const [evaluacionesData] = await pool.query(evaluacionesQuery, [idConfiguracion, ...evaluacionesParams]);
+    console.log(`Se encontraron ${evaluacionesData.length} respuestas de evaluación (Podio)`);
+
+    // 4. Procesar datos y calcular métricas por docente
+    const docentesMap = new Map();
+
+    // Inicializar estructura de datos por docente
+    vistaData.forEach(row => {
+      const key = `${row.ID_DOCENTE}`;
+      if (!docentesMap.has(key)) {
+        docentesMap.set(key, {
+          ID_DOCENTE: row.ID_DOCENTE,
+          DOCENTE: row.DOCENTE,
+          PERIODO: row.PERIODO,
+          NOMBRE_SEDE: row.NOMBRE_SEDE,
+          NOM_PROGRAMA: row.NOM_PROGRAMA,
+          SEMESTRE: row.SEMESTRE,
+          GRUPO: row.GRUPO,
+          asignaturas: new Set(),
+          estudiantes: new Set(),
+          evaluaciones_esperadas: new Set(),
+          evaluaciones_realizadas: new Set(),
+          puntajes: [], // Array para almacenar todos los puntajes del docente
+          total_respuestas: 0,
+          estudiante_asignatura_docente: new Map()
+        });
+      }
+
+      const docente = docentesMap.get(key);
+      docente.asignaturas.add(row.COD_ASIGNATURA);
+      docente.estudiantes.add(row.ID_ESTUDIANTE);
+      
+      const evaluacionKey = `${row.ID_ESTUDIANTE}-${row.COD_ASIGNATURA}`;
+      docente.evaluaciones_esperadas.add(evaluacionKey);
+      docente.estudiante_asignatura_docente.set(evaluacionKey, true);
+    });
+
+    // Procesar evaluaciones realizadas
+    evaluacionesData.forEach(eval => {
+      const estudianteAsignatura = `${eval.DOCUMENTO_ESTUDIANTE}-${eval.CODIGO_MATERIA}`;
+      
+      // Buscar qué docente corresponde a esta combinación estudiante-asignatura
+      for (let [docenteKey, docente] of docentesMap) {
+        if (docente.estudiante_asignatura_docente.has(estudianteAsignatura)) {
+          docente.evaluaciones_realizadas.add(estudianteAsignatura);
+          docente.total_respuestas++;
+          
+          // Agregar puntaje al array si es válido
+          const puntaje = parseFloat(eval.PUNTAJE);
+          if (!isNaN(puntaje)) {
+            docente.puntajes.push(puntaje);
+          }
+          
+          break;
         }
+      }
+    });
 
-        // 3. NOMBRE_SEDE
-        if (nombreSede) {
-            conditions.push(`${alias}.NOMBRE_SEDE = ?`);
-            params.push(nombreSede);
-        }
-
-        // 4. NOM_PROGRAMA
-        if (nomPrograma) {
-            conditions.push(`${alias}.NOM_PROGRAMA = ?`);
-            params.push(nomPrograma);
-        }
-
-        // 5. SEMESTRE
-        if (semestre) {
-            conditions.push(`${alias}.SEMESTRE = ?`);
-            params.push(semestre);
-        }
-
-        // 6. GRUPO
-        if (grupo) {
-            conditions.push(`${alias}.GRUPO = ?`);
-            params.push(grupo);
+    // 5. Convertir a array y calcular métricas
+    const docentes = Array.from(docentesMap.values())
+      .map(docente => {
+        const evaluaciones_esperadas = docente.evaluaciones_esperadas.size;
+        const evaluaciones_realizadas = docente.evaluaciones_realizadas.size;
+        const evaluaciones_pendientes = evaluaciones_esperadas - evaluaciones_realizadas;
+        const total_estudiantes = docente.estudiantes.size;
+        const total_asignaturas = docente.asignaturas.size;
+        
+        // Calcular promedio individual del docente: promedio de todos sus puntajes
+        let promedio_general = 0.00;
+        if (docente.puntajes.length > 0) {
+          const suma_puntajes = docente.puntajes.reduce((sum, puntaje) => sum + puntaje, 0);
+          promedio_general = parseFloat((suma_puntajes / docente.puntajes.length).toFixed(2));
         }
 
         return {
-            clause: conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : '',
-            params
+          ID_DOCENTE: docente.ID_DOCENTE,
+          DOCENTE: docente.DOCENTE,
+          PERIODO: docente.PERIODO,
+          NOMBRE_SEDE: docente.NOMBRE_SEDE,
+          NOM_PROGRAMA: docente.NOM_PROGRAMA,
+          SEMESTRE: docente.SEMESTRE,
+          GRUPO: docente.GRUPO,
+          TOTAL_ESTUDIANTES: total_estudiantes,
+          TOTAL_ASIGNATURAS: total_asignaturas,
+          TOTAL_RESPUESTAS: docente.total_respuestas,
+          PROMEDIO_GENERAL: promedio_general, // Promedio individual del docente
+          EVALUACIONES_ESPERADAS: evaluaciones_esperadas,
+          EVALUACIONES_REALIZADAS: evaluaciones_realizadas,
+          EVALUACIONES_PENDIENTES: evaluaciones_pendientes
         };
-    };
+      })
+      .filter(docente => docente.TOTAL_RESPUESTAS > 0);
 
-    // Construir la condición WHERE para la consulta principal
-    const mainWhere = buildWhereClause('va');
+    // 6. Crear podio (top 3 mejores y top 3 peores)
+    if (docentes.length === 0) {
+      console.log('No hay docentes con respuestas para crear podio');
+      return [];
+    }
 
-    // Consulta SQL con filtros dinámicos
-    const query = `
-        WITH DatosCompletos AS (
-            SELECT 
-                va.ID_DOCENTE, 
-                va.DOCENTE, 
-                COUNT(DISTINCT CONCAT(va.COD_ASIGNATURA)) AS evaluaciones_esperadas,
-                COUNT(DISTINCT CASE WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) END) AS evaluaciones_realizadas,
-                COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)) -
-                COUNT(DISTINCT CASE WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) END) AS evaluaciones_pendientes,
-                IFNULL(SUM(cv.PUNTAJE), 0) AS TOTAL_PUNTAJE,
-                IFNULL(COUNT(DISTINCT ed.ID), 0) AS TOTAL_RESPUESTAS,
-                IFNULL(ROUND(SUM(cv.PUNTAJE) / 
-                    (
-                        COUNT(DISTINCT CASE 
-                            WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) 
-                        END)
-                        * (SELECT COUNT(*) 
-                             FROM configuracion_aspecto 
-                             WHERE ACTIVO = TRUE AND CONFIGURACION_EVALUACION_ID = ?)
-                    ), 2), 0.00) AS PROMEDIO_GENERAL
-            FROM vista_academica_insitus va
-            LEFT JOIN evaluaciones e 
-                ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE 
-                AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
-            LEFT JOIN evaluacion_detalle ed 
-                ON e.ID = ed.EVALUACION_ID
-            LEFT JOIN configuracion_valoracion cv 
-                ON ed.VALORACION_id = cv.VALORACION_ID
-            WHERE e.ID_CONFIGURACION = ?
-              ${mainWhere.clause} 
-            GROUP BY va.ID_DOCENTE, va.DOCENTE
-        ),
-        Filtrados AS (
-            SELECT *
-            FROM DatosCompletos
-            WHERE TOTAL_RESPUESTAS > 0
-        ),
-        TopMejores AS (
-            SELECT 
-                *, 
-                ROW_NUMBER() OVER (ORDER BY PROMEDIO_GENERAL DESC) AS RANKING
-            FROM Filtrados
-        ),
-        TopPeores AS (
-            SELECT 
-                *, 
-                ROW_NUMBER() OVER (ORDER BY PROMEDIO_GENERAL ASC) AS RANKING
-            FROM Filtrados
-            WHERE ID_DOCENTE NOT IN (
-                SELECT ID_DOCENTE FROM TopMejores WHERE RANKING <= 3
-            )
-        ),
-        TopFinal AS (
-            SELECT 
-                ID_DOCENTE, 
-                DOCENTE, 
-                TOTAL_PUNTAJE,
-                TOTAL_RESPUESTAS,
-                PROMEDIO_GENERAL,
-                evaluaciones_esperadas,
-                evaluaciones_realizadas,
-                evaluaciones_pendientes,
-                CONCAT('TOP ', RANKING, ' MEJOR') AS POSICION,
-                RANKING AS orden_podio
-            FROM TopMejores
-            WHERE RANKING <= 3
+    // Ordenar por promedio general (de mayor a menor)
+    const ordenadosPorPromedio = [...docentes].sort((a, b) => {
+      if (b.PROMEDIO_GENERAL !== a.PROMEDIO_GENERAL) {
+        return b.PROMEDIO_GENERAL - a.PROMEDIO_GENERAL;
+      }
+      return a.ID_DOCENTE - b.ID_DOCENTE;
+    });
+    
+    // Top 3 mejores
+    const topMejores = ordenadosPorPromedio.slice(0, 3).map((docente, index) => ({
+      ...docente,
+      POSICION: `TOP ${index + 1} MEJOR`
+    }));
 
-            UNION ALL
+    // Para los peores, tomar los últimos 3 (pero solo si hay más de 3 docentes)
+    let topPeores = [];
+    if (ordenadosPorPromedio.length > 3) {
+      // Excluir los que ya están en top mejores
+      const docentesParaPeores = ordenadosPorPromedio.filter(docente => 
+        !topMejores.some(mejor => mejor.ID_DOCENTE === docente.ID_DOCENTE)
+      );
+      
+      // Tomar los últimos 3 (peores promedios)
+      topPeores = docentesParaPeores
+        .slice(-3)
+        .reverse() // Para mostrar del peor al menos peor
+        .map((docente, index) => ({
+          ...docente,
+          POSICION: `TOP ${index + 1} PEOR`
+        }));
+    }
 
-            SELECT 
-                ID_DOCENTE, 
-                DOCENTE, 
-                TOTAL_PUNTAJE,
-                TOTAL_RESPUESTAS,
-                PROMEDIO_GENERAL,
-                evaluaciones_esperadas,
-                evaluaciones_realizadas,
-                evaluaciones_pendientes,
-                CONCAT('TOP ', RANKING, ' PEOR') AS POSICION,
-                3 + RANKING AS orden_podio
-            FROM TopPeores
-            WHERE RANKING <= 3
-        )
-        SELECT 
-            ID_DOCENTE, 
-            DOCENTE, 
-            TOTAL_PUNTAJE,
-            TOTAL_RESPUESTAS,
-            PROMEDIO_GENERAL,
-            evaluaciones_esperadas,
-            evaluaciones_realizadas,
-            evaluaciones_pendientes,
-            POSICION
-        FROM TopFinal
-        ORDER BY orden_podio;
-    `;
+    const podio = [...topMejores, ...topPeores];
+    console.log(`Podio creado con ${podio.length} docentes`);
 
-    // Valores para los parámetros de la consulta
-    const values = [
-        idConfiguracion, // Para el subquery COUNT(*) de configuracion_aspecto
-        idConfiguracion, // Para la consulta principal (e.ID_CONFIGURACION)
-        ...mainWhere.params, // Parámetros de los filtros dinámicos
-    ];
-
-    const [podio] = await pool.query(query, values);
     return podio;
+
+  } catch (error) {
+    console.error("Error al obtener el podio de docentes: ", error);
+    throw error;
+  }
 };
 
 module.exports = {

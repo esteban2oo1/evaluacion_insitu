@@ -1,37 +1,30 @@
 const { getPool } = require("../../../../db");
+const { getRemotePool } = require('../../../../db');
+const { getSecurityPool } = require('../../../../db');
 
 const VistaProfileModel = {
 
   // INFORMACION DE ESTUDIANTE
 
   async getEstudianteInfo(documento) {
-    const pool = await getPool();
-    const [estudianteInfo] = await pool.query(
+    const remotePool = await getRemotePool(); // sigedin_ies
+    const securityPool = await getSecurityPool(); // sigedin_seguridad
+    
+    // Consulta principal de estudiante desde sigedin_ies
+    const [estudianteInfo] = await remotePool.query(
       `SELECT 
           e.SEDE,
-          dl.user_name,
           e.TIPO_DOC,
           e.DOCUMENTO_ESTUDIANTE,
           e.ESTADO_MATRICULA,
           p.NOM_PROGRAMA,
           e.SEMESTRE_MATRICULA,
           p.SEMESTRE,
-          p.GRUPO,
-          dl.user_idrole,
-          dl.role_name AS ROL_PRINCIPAL,
-          r.ID AS ID_ROL_ADICIONAL,
-          r.NOMBRE_ROL AS ROL_ADICIONAL
-      FROM VISTA_ESTUDIANTE e
-      JOIN VISTA_ACADEMICA_INSITUS p 
+          p.GRUPO
+      FROM vista_estudiantes e
+      JOIN vista_academica_insitus p 
           ON e.DOCUMENTO_ESTUDIANTE = p.ID_ESTUDIANTE
-      JOIN DATALOGIN dl 
-          ON dl.user_username = e.DOCUMENTO_ESTUDIANTE
-      LEFT JOIN users_roles ur 
-          ON ur.user_id = dl.user_id
-      LEFT JOIN roles r 
-          ON ur.rol_id = r.ID
       WHERE e.DOCUMENTO_ESTUDIANTE = ?
-        AND (r.NOMBRE_ROL IS NULL OR r.NOMBRE_ROL != dl.role_name)
       GROUP BY 
           e.SEMESTRE_MATRICULA,
           e.SEDE,
@@ -40,29 +33,81 @@ const VistaProfileModel = {
           e.ESTADO_MATRICULA,
           p.NOM_PROGRAMA,
           p.SEMESTRE,
-          p.GRUPO,
-          dl.user_name,
-          dl.user_idrole,
-          dl.role_name,
-          r.ID,
-          r.NOMBRE_ROL;`,
+          p.GRUPO`,
       [documento]
     );
-    console.log(estudianteInfo);
-    return estudianteInfo;
+
+    // Consulta de datos de login desde sigedin_seguridad
+    const [loginInfo] = await securityPool.query(
+      `SELECT 
+          dl.user_name,
+          dl.user_idrole,
+          dl.role_name AS ROL_PRINCIPAL,
+          dl.user_id
+      FROM datalogin dl 
+      WHERE dl.user_username = ?`,
+      [documento]
+    );
+
+    // Si no hay información de estudiante o login, retornar array vacío
+    if (estudianteInfo.length === 0 || loginInfo.length === 0) {
+      return [];
+    }
+
+    // Obtener roles adicionales desde base local
+    const localPool = await getPool();
+    const [additionalRoles] = await localPool.query(
+      `SELECT 
+          r.ID AS ID_ROL_ADICIONAL,
+          r.NOMBRE_ROL AS ROL_ADICIONAL
+      FROM users_roles ur 
+      JOIN roles r ON ur.rol_id = r.ID
+      WHERE ur.user_id = ? AND r.NOMBRE_ROL != ?`,
+      [loginInfo[0].user_id, loginInfo[0].ROL_PRINCIPAL]
+    );
+
+    // Crear el resultado combinando estudiante info con roles adicionales
+    const resultado = [];
+    const infoBase = {
+      ...estudianteInfo[0],
+      user_name: loginInfo[0].user_name,
+      user_idrole: loginInfo[0].user_idrole,
+      ROL_PRINCIPAL: loginInfo[0].ROL_PRINCIPAL
+    };
+
+    // Si hay roles adicionales, crear una fila por cada rol adicional
+    if (additionalRoles.length > 0) {
+      additionalRoles.forEach(rol => {
+        resultado.push({
+          ...infoBase,
+          ID_ROL_ADICIONAL: rol.ID_ROL_ADICIONAL,
+          ROL_ADICIONAL: rol.ROL_ADICIONAL
+        });
+      });
+    } else {
+      // Si no hay roles adicionales, agregar solo la información base
+      resultado.push({
+        ...infoBase,
+        ID_ROL_ADICIONAL: null,
+        ROL_ADICIONAL: null
+      });
+    }
+
+    console.log(resultado);
+    return resultado;
   },
 
   // MATERIAS DE ESTUDIANTE
 
   async getMateriasEstudiante(documento) {
-    const pool = await getPool();
-    const [materias] = await pool.query(
+    const remotePool = await getRemotePool();
+    const [materias] = await remotePool.query(
       `SELECT DISTINCT 
          ai.COD_ASIGNATURA as CODIGO_MATERIA,
          ai.ASIGNATURA as NOMBRE_MATERIA,
          ai.ID_DOCENTE as DOCUMENTO_DOCENTE,
          ai.DOCENTE as NOMBRE_DOCENTE
-       FROM VISTA_ACADEMICA_INSITUS ai
+       FROM vista_academica_insitus ai
        WHERE ai.ID_ESTUDIANTE = ?`,
       [documento]
     );
@@ -72,41 +117,90 @@ const VistaProfileModel = {
   // INFORMACION DE DOCENTE
 
   async getDocenteInfo(documento) {
-    const pool = await getPool();
-    const [docenteInfo] = await pool.query(
+    const remotePool = await getRemotePool(); // sigedin_ies
+    const securityPool = await getSecurityPool(); // sigedin_seguridad
+    
+    // Consulta principal de docente desde sigedin_ies
+    const [docenteInfo] = await remotePool.query(
       `SELECT DISTINCT
          ai.ID_DOCENTE AS DOCUMENTO_DOCENTE,
          ai.DOCENTE AS NOMBRE_DOCENTE,
          ai.NOMBRE_SEDE AS SEDE,
-         ai.PERIODO,
-         dl.user_idrole,
-         dl.role_name AS ROL_PRINCIPAL,
-         r.ID AS ID_ROL_ADICIONAL,
-         r.NOMBRE_ROL AS ROL_ADICIONAL
-       FROM VISTA_ACADEMICA_INSITUS ai
-       JOIN DATALOGIN dl ON dl.user_username = ai.ID_DOCENTE
-       LEFT JOIN users_roles ur ON ur.user_id = dl.user_id
-       LEFT JOIN roles r ON ur.rol_id = r.ID
+         ai.PERIODO
+       FROM vista_academica_insitus ai
        WHERE ai.ID_DOCENTE = ?
        GROUP BY 
           ai.ID_DOCENTE,
           ai.DOCENTE,
           ai.NOMBRE_SEDE,
-          ai.PERIODO,
-          dl.user_idrole,
-          dl.role_name,
-          r.ID,
-          r.NOMBRE_ROL;`,
+          ai.PERIODO`,
       [documento]
     );
-    return docenteInfo;
+
+    // Consulta de datos de login desde sigedin_seguridad
+    const [loginInfo] = await securityPool.query(
+      `SELECT 
+          dl.user_name,
+          dl.user_idrole,
+          dl.role_name AS ROL_PRINCIPAL,
+          dl.user_id
+      FROM datalogin dl 
+      WHERE dl.user_username = ?`,
+      [documento]
+    );
+
+    // Si no hay información de docente o login, retornar array vacío
+    if (docenteInfo.length === 0 || loginInfo.length === 0) {
+      return [];
+    }
+
+    // Obtener roles adicionales desde base local
+    const localPool = await getPool();
+    const [additionalRoles] = await localPool.query(
+      `SELECT 
+          r.ID AS ID_ROL_ADICIONAL,
+          r.NOMBRE_ROL AS ROL_ADICIONAL
+      FROM users_roles ur 
+      JOIN roles r ON ur.rol_id = r.ID
+      WHERE ur.user_id = ? AND r.NOMBRE_ROL != ?`,
+      [loginInfo[0].user_id, loginInfo[0].ROL_PRINCIPAL]
+    );
+
+    // Crear el resultado combinando docente info con roles adicionales
+    const resultado = [];
+    const infoBase = {
+      ...docenteInfo[0],
+      user_name: loginInfo[0].user_name,
+      user_idrole: loginInfo[0].user_idrole,
+      ROL_PRINCIPAL: loginInfo[0].ROL_PRINCIPAL
+    };
+
+    // Si hay roles adicionales, crear una fila por cada rol adicional
+    if (additionalRoles.length > 0) {
+      additionalRoles.forEach(rol => {
+        resultado.push({
+          ...infoBase,
+          ID_ROL_ADICIONAL: rol.ID_ROL_ADICIONAL,
+          ROL_ADICIONAL: rol.ROL_ADICIONAL
+        });
+      });
+    } else {
+      // Si no hay roles adicionales, agregar solo la información base
+      resultado.push({
+        ...infoBase,
+        ID_ROL_ADICIONAL: null,
+        ROL_ADICIONAL: null
+      });
+    }
+
+    return resultado;
   },
 
   // MATERIAS DE DOCENTE
 
   async getMateriasDocente(documento) {
-    const pool = await getPool();
-    const [materias] = await pool.query(
+    const remotePool = await getRemotePool();
+    const [materias] = await remotePool.query(
       `WITH ASIGNATURA_SEMESTRES AS (
           SELECT 
               COD_ASIGNATURA,
@@ -156,11 +250,11 @@ const VistaProfileModel = {
     return materias;
   },
 
-  //
+  // OBTENER ROLES ADICIONALES (desde base local)
 
   async getRolesAdicionales(userId) {
-    const pool = await getPool();
-    const [additionalRoles] = await pool.query(
+    const localPool = await getPool();
+    const [additionalRoles] = await localPool.query(
       `SELECT r.NOMBRE_ROL 
        FROM users_roles ur 
        JOIN ROLES r ON ur.rol_id = r.ID 
@@ -169,6 +263,24 @@ const VistaProfileModel = {
     );
     return additionalRoles;
   },
+
+  // OBTENER INFORMACION DE LOGIN (desde sigedin_seguridad)
+
+  async getLoginInfo(username) {
+    const securityPool = await getSecurityPool();
+    const [loginInfo] = await securityPool.query(
+      `SELECT 
+          user_id,
+          user_name,
+          user_username,
+          user_idrole,
+          role_name
+      FROM datalogin 
+      WHERE user_username = ?`,
+      [username]
+    );
+    return loginInfo;
+  }
 };
 
 module.exports = VistaProfileModel;

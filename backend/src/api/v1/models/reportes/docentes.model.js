@@ -1,142 +1,215 @@
-const { getPool } = require('../../../../db');
+const { getPool, getRemotePool } = require('../../../../db');
 
 const getDocentesAsignaturasModel = async ({ idConfiguracion, periodo, nombreSede, nomPrograma, semestre, grupo }) => {
-    const pool = await getPool();
+    // Separate pools for different databases
+    const remotePool = await getRemotePool(); // For vista_academica_insitus
+    const localPool = await getPool(); // For evaluaciones and evaluacion_detalle
 
-    let conditions = [];
-    let params = [];
+    // Separate conditions for remote and local databases
+    let remoteConditions = [];
+    let remoteParams = [];
+    let localConditions = [];
+    let localParams = [];
 
-    // Armado dinámico de filtros
-    if (idConfiguracion) {
-        conditions.push(`e.ID_CONFIGURACION = ?`);
-        params.push(idConfiguracion);
-    }
-
+    // Remote database filters (vista_academica_insitus)
     if (periodo) {
-        conditions.push(`va.PERIODO = ?`);
-        params.push(periodo);
+        remoteConditions.push(`PERIODO = ?`);
+        remoteParams.push(periodo);
     }
 
     if (nombreSede) {
-        conditions.push(`va.NOMBRE_SEDE = ?`);
-        params.push(nombreSede);
+        remoteConditions.push(`NOMBRE_SEDE = ?`);
+        remoteParams.push(nombreSede);
     }
 
     if (nomPrograma) {
-        conditions.push(`va.NOM_PROGRAMA = ?`);
-        params.push(nomPrograma);
+        remoteConditions.push(`NOM_PROGRAMA = ?`);
+        remoteParams.push(nomPrograma);
     }
 
     if (semestre) {
-        conditions.push(`va.SEMESTRE = ?`);
-        params.push(semestre);
+        remoteConditions.push(`SEMESTRE = ?`);
+        remoteParams.push(semestre);
     }
 
     if (grupo) {
-        conditions.push(`va.GRUPO = ?`);
-        params.push(grupo);
+        remoteConditions.push(`GRUPO = ?`);
+        remoteParams.push(grupo);
     }
 
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    // Local database filters (evaluaciones)
+    if (idConfiguracion) {
+        localConditions.push(`ID_CONFIGURACION = ?`);
+        localParams.push(idConfiguracion);
+    }
 
-    const query = `
-        WITH ASIGNATURA_SEMESTRES AS (
+    const remoteWhereClause = remoteConditions.length > 0 ? `WHERE ${remoteConditions.join(' AND ')}` : '';
+    const localWhereClause = localConditions.length > 0 ? `WHERE ${localConditions.join(' AND ')}` : '';
+
+    try {
+        // Step 1: Get basic academic data from vista_academica_insitus (remote database)
+        const academicDataQuery = `
             SELECT 
                 COD_ASIGNATURA,
                 ASIGNATURA,
                 ID_DOCENTE,
                 DOCENTE,
                 SEMESTRE,
-                COUNT(*) AS TOTAL_ESTUDIANTES
+                NOM_PROGRAMA,
+                NOMBRE_SEDE,
+                GRUPO,
+                ID_ESTUDIANTE
             FROM vista_academica_insitus
-            GROUP BY COD_ASIGNATURA, ASIGNATURA, ID_DOCENTE, DOCENTE, SEMESTRE
-        ),
-        SEMESTRE_PREDOMINANTE AS (
-            SELECT 
-                COD_ASIGNATURA,
-                ID_DOCENTE,
-                SEMESTRE AS SEMESTRE_PREDOMINANTE,
-                ROW_NUMBER() OVER (PARTITION BY COD_ASIGNATURA, ID_DOCENTE ORDER BY COUNT(*) DESC) AS rn
-            FROM vista_academica_insitus
-            GROUP BY COD_ASIGNATURA, ID_DOCENTE, SEMESTRE
-        ),
-        PROGRAMA_PREDOMINANTE AS (
-            SELECT 
-                COD_ASIGNATURA,
-                ID_DOCENTE,
-                NOM_PROGRAMA AS PROGRAMA_PREDOMINANTE,
-                ROW_NUMBER() OVER (PARTITION BY COD_ASIGNATURA, ID_DOCENTE ORDER BY COUNT(*) DESC) AS rn
-            FROM vista_academica_insitus
-            GROUP BY COD_ASIGNATURA, ID_DOCENTE, NOM_PROGRAMA
-        )
-        SELECT 
-            ai.COD_ASIGNATURA,
-            ai.ASIGNATURA,
-            ai.ID_DOCENTE,
-            ai.DOCENTE,
-            sp.SEMESTRE_PREDOMINANTE,
-            pp.PROGRAMA_PREDOMINANTE,
-            va.NOMBRE_SEDE,
-            va.GRUPO,
-            COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)) AS total_evaluaciones_esperadas,
-            COUNT(DISTINCT CASE 
-                WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) 
-            END) AS evaluaciones_completadas,
-            COUNT(DISTINCT CASE 
-                WHEN ed.ID IS NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) 
-            END) AS evaluaciones_pendientes,
-            ROUND(
-                100.0 * COUNT(DISTINCT CASE 
-                    WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) 
-                END)
-                / NULLIF(COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)), 0),
-                2
-            ) AS porcentaje_completado,
-            CASE 
-                WHEN COUNT(DISTINCT CASE 
-                    WHEN ed.ID IS NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) 
-                END) = 0 
-                    AND COUNT(DISTINCT CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA)) > 0 THEN 'COMPLETADO'
-                WHEN COUNT(DISTINCT CASE 
-                    WHEN ed.ID IS NOT NULL THEN CONCAT(va.ID_ESTUDIANTE, '-', va.COD_ASIGNATURA) 
-                END) = 0 THEN 'NO INICIADO'
-                ELSE 'EN PROGRESO'
-            END AS estado_evaluacion
-        FROM 
-            vista_academica_insitus va
-        LEFT JOIN evaluaciones e 
-            ON va.ID_ESTUDIANTE = e.DOCUMENTO_ESTUDIANTE 
-            AND va.COD_ASIGNATURA = e.CODIGO_MATERIA
-        LEFT JOIN evaluacion_detalle ed 
-            ON e.ID = ed.EVALUACION_ID
-        LEFT JOIN ASIGNATURA_SEMESTRES ai 
-            ON va.COD_ASIGNATURA = ai.COD_ASIGNATURA 
-            AND va.ID_DOCENTE = ai.ID_DOCENTE
-        LEFT JOIN SEMESTRE_PREDOMINANTE sp 
-            ON ai.COD_ASIGNATURA = sp.COD_ASIGNATURA 
-            AND ai.ID_DOCENTE = sp.ID_DOCENTE 
-            AND sp.rn = 1
-        LEFT JOIN PROGRAMA_PREDOMINANTE pp 
-            ON ai.COD_ASIGNATURA = pp.COD_ASIGNATURA 
-            AND ai.ID_DOCENTE = pp.ID_DOCENTE 
-            AND pp.rn = 1
-        ${whereClause}
-        GROUP BY 
-            ai.COD_ASIGNATURA,
-            ai.ASIGNATURA,
-            ai.ID_DOCENTE,
-            ai.DOCENTE,
-            sp.SEMESTRE_PREDOMINANTE,
-            pp.PROGRAMA_PREDOMINANTE,
-            va.NOMBRE_SEDE,
-            va.GRUPO
-        ORDER BY porcentaje_completado DESC;
-    `;
+            ${remoteWhereClause}
+            ORDER BY COD_ASIGNATURA, ID_DOCENTE
+        `;
 
-    const [result] = await pool.query(query, params);
-    return result;
+        const [academicData] = await remotePool.query(academicDataQuery, remoteParams);
+
+        // Step 2: Get evaluation data from local database
+        const evaluationQuery = `
+            SELECT 
+                e.DOCUMENTO_ESTUDIANTE,
+                e.CODIGO_MATERIA,
+                e.ID_CONFIGURACION,
+                COUNT(DISTINCT ed.ID) AS evaluaciones_completadas
+            FROM evaluaciones e
+            LEFT JOIN evaluacion_detalle ed ON e.ID = ed.EVALUACION_ID
+            ${localWhereClause}
+            GROUP BY e.DOCUMENTO_ESTUDIANTE, e.CODIGO_MATERIA, e.ID_CONFIGURACION
+        `;
+
+        const [evaluationData] = await localPool.query(evaluationQuery, localParams);
+
+        // Step 3: Combine data in application layer
+        const evaluationMap = new Map();
+        evaluationData.forEach(eval => {
+            const key = `${eval.DOCUMENTO_ESTUDIANTE}-${eval.CODIGO_MATERIA}`;
+            evaluationMap.set(key, eval.evaluaciones_completadas);
+        });
+
+        // Step 4: Process academic data to find predominant semester and program
+        const processedData = new Map();
+        
+        // First pass: collect all data and count occurrences
+        academicData.forEach(academic => {
+            const key = `${academic.COD_ASIGNATURA}-${academic.ID_DOCENTE}`;
+            
+            if (!processedData.has(key)) {
+                processedData.set(key, {
+                    COD_ASIGNATURA: academic.COD_ASIGNATURA,
+                    ASIGNATURA: academic.ASIGNATURA,
+                    ID_DOCENTE: academic.ID_DOCENTE,
+                    DOCENTE: academic.DOCENTE,
+                    semesterCounts: new Map(),
+                    programCounts: new Map(),
+                    students: new Map()
+                });
+            }
+            
+            const data = processedData.get(key);
+            
+            // Count semesters
+            const semCount = data.semesterCounts.get(academic.SEMESTRE) || 0;
+            data.semesterCounts.set(academic.SEMESTRE, semCount + 1);
+            
+            // Count programs
+            const progCount = data.programCounts.get(academic.NOM_PROGRAMA) || 0;
+            data.programCounts.set(academic.NOM_PROGRAMA, progCount + 1);
+            
+            // Store student data by group and sede
+            const studentKey = `${academic.NOMBRE_SEDE}-${academic.GRUPO}`;
+            if (!data.students.has(studentKey)) {
+                data.students.set(studentKey, {
+                    NOMBRE_SEDE: academic.NOMBRE_SEDE,
+                    GRUPO: academic.GRUPO,
+                    studentIds: new Set()
+                });
+            }
+            data.students.get(studentKey).studentIds.add(academic.ID_ESTUDIANTE);
+        });
+        
+        // Step 5: Build final results with predominant values
+        const resultMap = new Map();
+        
+        processedData.forEach((data, key) => {
+            // Find predominant semester
+            let maxSemCount = 0;
+            let predominantSemester = null;
+            data.semesterCounts.forEach((count, semester) => {
+                if (count > maxSemCount) {
+                    maxSemCount = count;
+                    predominantSemester = semester;
+                }
+            });
+            
+            // Find predominant program
+            let maxProgCount = 0;
+            let predominantProgram = null;
+            data.programCounts.forEach((count, program) => {
+                if (count > maxProgCount) {
+                    maxProgCount = count;
+                    predominantProgram = program;
+                }
+            });
+            
+            // Create results for each sede-grupo combination
+            data.students.forEach((studentData, studentKey) => {
+                const resultKey = `${key}-${studentKey}`;
+                
+                let evaluaciones_completadas = 0;
+                let evaluaciones_pendientes = 0;
+                
+                studentData.studentIds.forEach(studentId => {
+                    const evalKey = `${studentId}-${data.COD_ASIGNATURA}`;
+                    if (evaluationMap.has(evalKey)) {
+                        evaluaciones_completadas++;
+                    } else {
+                        evaluaciones_pendientes++;
+                    }
+                });
+                
+                const total_evaluaciones_esperadas = studentData.studentIds.size;
+                
+                resultMap.set(resultKey, {
+                    COD_ASIGNATURA: data.COD_ASIGNATURA,
+                    ASIGNATURA: data.ASIGNATURA,
+                    ID_DOCENTE: data.ID_DOCENTE,
+                    DOCENTE: data.DOCENTE,
+                    SEMESTRE_PREDOMINANTE: predominantSemester,
+                    PROGRAMA_PREDOMINANTE: predominantProgram,
+                    NOMBRE_SEDE: studentData.NOMBRE_SEDE,
+                    GRUPO: studentData.GRUPO,
+                    total_evaluaciones_esperadas,
+                    evaluaciones_completadas,
+                    evaluaciones_pendientes
+                });
+            });
+        });
+
+        // Step 6: Calculate percentages and status
+        const finalResults = Array.from(resultMap.values()).map(result => ({
+            ...result,
+            porcentaje_completado: result.total_evaluaciones_esperadas > 0 
+                ? Math.round((result.evaluaciones_completadas / result.total_evaluaciones_esperadas) * 100 * 100) / 100
+                : 0,
+            estado_evaluacion: result.evaluaciones_pendientes === 0 && result.total_evaluaciones_esperadas > 0
+                ? 'COMPLETADO'
+                : result.evaluaciones_completadas === 0
+                ? 'NO INICIADO'
+                : 'EN PROGRESO'
+        }));
+
+        // Sort by percentage completed (descending)
+        finalResults.sort((a, b) => b.porcentaje_completado - a.porcentaje_completado);
+
+        return finalResults;
+
+    } catch (error) {
+        console.error('Error in getDocentesAsignaturasModel:', error);
+        throw error;
+    }
 };
-
 
 const getEstudiantesEvaluadosModel = async (idDocente, codAsignatura, grupo) => {
     const pool = await getPool();
