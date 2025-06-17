@@ -2,8 +2,8 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { configuracionEvaluacionService, tiposEvaluacionesService } from "@/lib/services/evaluacionInsitu"
-import { TipoEvaluacion, ConfiguracionEvaluacion } from "@/lib/types/evaluacionInsitu"
+import { configuracionEvaluacionService } from "@/lib/services/evaluacionInsitu"
+import { ConfiguracionEvaluacion } from "@/lib/types/evaluacionInsitu"
 import { getSemestres, getPeriodos, getProgramas, getGrupos, getSedes } from "@/lib/services/vista/vistaAcademicaInsitu"
 import { Periodo, Semestre, Programa, Grupo, Sede } from "@/lib/types/vista/vistaAcademicaInsitu"
 import { ApiResponse } from "@/lib/types/dashboard/dashboard"
@@ -24,17 +24,26 @@ interface FiltrosProps {
   loading?: boolean
 }
 
-interface ConfiguracionInfo {
-  configuracion: ConfiguracionEvaluacion
-  tipoEvaluacion?: TipoEvaluacion
-}
-
 function extractData<T extends object>(response: T | ApiResponse<T>): T {
   if ('success' in response && 'data' in response) {
     return response.data
   }
   return response
 }
+
+// Función para formatear fechas
+const formatearFecha = (fechaISO: string): string => {
+  try {
+    const fecha = new Date(fechaISO);
+    return fecha.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  } catch (error) {
+    return fechaISO; // Retornar fecha original si hay error
+  }
+};
 
 export default function Filtros({ 
   filtros, 
@@ -44,13 +53,39 @@ export default function Filtros({
 }: FiltrosProps) {
   // Estados para las opciones de los selects
   const [configuraciones, setConfiguraciones] = useState<ConfiguracionEvaluacion[]>([])
-  const [tiposEvaluacion, setTiposEvaluacion] = useState<TipoEvaluacion[]>([])
   const [semestres, setSemestres] = useState<Semestre[]>([])
   const [periodos, setPeriodos] = useState<Periodo[]>([])
   const [programas, setProgramas] = useState<Programa[]>([])
   const [grupos, setGrupos] = useState<Grupo[]>([])
   const [sedes, setSedes] = useState<Sede[]>([])
   const [loadingData, setLoadingData] = useState(true)
+  const [mostrarConfiguracion, setMostrarConfiguracion] = useState(false)
+
+  // Función para obtener el periodo más reciente
+  const obtenerPeriodoMasReciente = (periodos: Periodo[]): string | null => {
+    if (!periodos || periodos.length === 0) return null;
+    
+    // Filtrar periodos únicos y válidos
+    const periodosUnicos = periodos
+      .filter((periodo, index, self) => 
+        periodo.PERIODO && 
+        self.findIndex(p => p.PERIODO === periodo.PERIODO) === index
+      )
+      .map(p => p.PERIODO)
+      .sort((a, b) => {
+        // Separar año y semestre para comparar correctamente
+        const [anoA, semestreA] = a.split('-').map(Number);
+        const [anoB, semestreB] = b.split('-').map(Number);
+        
+        // Primero comparar por año, luego por semestre
+        if (anoA !== anoB) {
+          return anoB - anoA; // Orden descendente por año
+        }
+        return semestreB - semestreA; // Orden descendente por semestre
+      });
+    
+    return periodosUnicos.length > 0 ? periodosUnicos[0] : null;
+  };
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -59,7 +94,6 @@ export default function Filtros({
         setLoadingData(true)
         const [
           configsResponse,
-          tiposResponse,
           semestresResponse,
           periodosResponse,
           programasResponse,
@@ -67,7 +101,6 @@ export default function Filtros({
           sedesResponse
         ] = await Promise.all([
           configuracionEvaluacionService.getAll(),
-          tiposEvaluacionesService.getAll(),
           getSemestres(),
           getPeriodos(),
           getProgramas(),
@@ -76,7 +109,6 @@ export default function Filtros({
         ])
 
         const configuracionesData = extractData<ConfiguracionEvaluacion[]>(configsResponse)
-        const tiposData = extractData<TipoEvaluacion[]>(tiposResponse)
         const semestresData = extractData<Semestre[]>(semestresResponse)
         const periodosData = extractData<Periodo[]>(periodosResponse)
         const programasData = extractData<Programa[]>(programasResponse)
@@ -84,30 +116,44 @@ export default function Filtros({
         const sedesData = extractData<Sede[]>(sedesResponse)
 
         setConfiguraciones(configuracionesData)
-        setTiposEvaluacion(tiposData)
         setSemestres(semestresData)
         setPeriodos(periodosData)
         setProgramas(programasData)
         setGrupos(gruposData)
         setSedes(sedesData)
 
-        // Si no hay configuración seleccionada, seleccionar la activa por defecto
-        if (!filtros.configuracionSeleccionada && Array.isArray(configuracionesData) && configuracionesData.length > 0) {
-          const configuracionActiva = configuracionesData.find((config) => config.ACTIVO)
-          const configuracionPorDefecto = configuracionActiva || configuracionesData[0]
-          
-          onFiltrosChange({
-            ...filtros,
-            configuracionSeleccionada: configuracionPorDefecto.ID
-          })
-        }
+        
+      // Crear un objeto con los nuevos filtros
+      let nuevosFiltros = { ...filtros };
 
-      } catch (error) {
-        console.error("Error cargando datos de filtros:", error)
-      } finally {
-        setLoadingData(false)
+      // Si no hay configuración seleccionada, seleccionar la activa por defecto
+      if (!filtros.configuracionSeleccionada && Array.isArray(configuracionesData) && configuracionesData.length > 0) {
+        const configuracionActiva = configuracionesData.find((config) => config.ACTIVO)
+        const configuracionPorDefecto = configuracionActiva || configuracionesData[0]
+        
+        nuevosFiltros.configuracionSeleccionada = configuracionPorDefecto.ID;
       }
+
+      // Si no hay periodo seleccionado, seleccionar el más reciente automáticamente
+      if (!filtros.periodoSeleccionado && Array.isArray(periodosData) && periodosData.length > 0) {
+        const periodoMasReciente = obtenerPeriodoMasReciente(periodosData);
+        if (periodoMasReciente) {
+          nuevosFiltros.periodoSeleccionado = periodoMasReciente;
+        }
+      }
+
+      // Aplicar los cambios si hay alguna modificación
+      if (nuevosFiltros.configuracionSeleccionada !== filtros.configuracionSeleccionada || 
+          nuevosFiltros.periodoSeleccionado !== filtros.periodoSeleccionado) {
+        onFiltrosChange(nuevosFiltros);
+      }
+
+    } catch (error) {
+      console.error("Error cargando datos de filtros:", error)
+    } finally {
+      setLoadingData(false)
     }
+  }
 
     cargarDatos()
   }, [])
@@ -120,18 +166,12 @@ export default function Filtros({
   }
 
   // Obtener información de la configuración seleccionada
-  const getConfiguracionInfo = (): ConfiguracionInfo | null => {
+  const getConfiguracionSeleccionada = (): ConfiguracionEvaluacion | null => {
     if (!filtros.configuracionSeleccionada || !configuraciones.length) return null
-    const configuracion = configuraciones.find(c => c.ID === filtros.configuracionSeleccionada)
-    if (!configuracion) return null
-    const tipoEvaluacion = tiposEvaluacion.find(t => t.ID === configuracion.TIPO_EVALUACION_ID)
-    return {
-      configuracion,
-      tipoEvaluacion
-    }
+    return configuraciones.find(c => c.ID === filtros.configuracionSeleccionada) || null
   }
 
-  const configuracionInfo = getConfiguracionInfo()
+  const configuracionSeleccionada = getConfiguracionSeleccionada()
 
   if (loadingData) {
     return (
@@ -308,30 +348,67 @@ export default function Filtros({
           </div>
         </div>
 
-        {/* Información de la configuración seleccionada */}
-        {configuracionInfo && (
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-4">
-            <h4 className="font-medium text-blue-900 mb-2">Información de la Configuración</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-blue-800">
-              <div>
-                <span className="font-medium">Nombre:</span> {configuracionInfo.configuracion.TIPO_EVALUACION_NOMBRE}
-              </div>
-              <div>
-                <span className="font-medium">Tipo:</span> {configuracionInfo.tipoEvaluacion?.NOMBRE || 'No disponible'}
-              </div>
-              <div>
-                <span className="font-medium">Estado:</span>
-                <span className={`ml-1 px-2 py-1 rounded-full text-xs font-medium ${
-                  configuracionInfo.configuracion.ACTIVO 
+        {/* Botón para mostrar/ocultar información de la configuración */}
+        {configuracionSeleccionada && (
+          <div className="mb-4">
+            <button
+              onClick={() => setMostrarConfiguracion(!mostrarConfiguracion)}
+              className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors duration-200 font-medium text-sm"
+            >
+              <svg 
+                className={`w-4 h-4 transition-transform duration-200 ${mostrarConfiguracion ? 'rotate-90' : ''}`}
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              {mostrarConfiguracion ? 'Ocultar' : 'Ver'} información de la configuración
+            </button>
+          </div>
+        )}
+
+        {/* Información de la configuración seleccionada (colapsible) */}
+        {configuracionSeleccionada && mostrarConfiguracion && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 transition-all duration-300 ease-in-out">
+            <div className="space-y-3">
+              <h4 className="text-blue-900 font-semibold text-base mb-3 flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                {configuracionSeleccionada.TIPO_EVALUACION_NOMBRE}
+                <span className={`ml-auto px-2 py-1 rounded-full text-xs font-medium ${
+                  configuracionSeleccionada.ACTIVO 
                     ? 'bg-green-100 text-green-800' 
-                    : 'bg-gray-100 text-gray-800'
+                    : 'bg-gray-100 text-gray-600'
                 }`}>
-                  {configuracionInfo.configuracion.ACTIVO ? 'Activa' : 'Inactiva'}
+                  {configuracionSeleccionada.ACTIVO ? 'Activa' : 'Inactiva'}
                 </span>
+              </h4>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                <div className="flex items-center gap-2 text-gray-700">
+                  <span className="text-blue-600">📅</span>
+                  <span className="font-medium">Inicio:</span>
+                  <span>{formatearFecha(configuracionSeleccionada.FECHA_INICIO)}</span>
+                </div>
+                
+                <div className="flex items-center gap-2 text-gray-700">
+                  <span className="text-blue-600">🏁</span>
+                  <span className="font-medium">Fin:</span>
+                  <span>{formatearFecha(configuracionSeleccionada.FECHA_FIN)}</span>
+                </div>
               </div>
-              {configuracionInfo.configuracion.TIPO_EVALUACION_DESCRIPCION && (
-                <div className="md:col-span-2 lg:col-span-3">
-                  <span className="font-medium">Descripción:</span> {configuracionInfo.configuracion.TIPO_EVALUACION_DESCRIPCION}
+
+              {configuracionSeleccionada.TIPO_EVALUACION_DESCRIPCION && (
+                <div className="mt-3 pt-3 border-t border-blue-200">
+                  <div className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="text-blue-600 mt-0.5">📝</span>
+                    <div>
+                      <span className="font-medium">Descripción:</span>
+                      <p className="mt-1 text-gray-600 leading-relaxed">
+                        {configuracionSeleccionada.TIPO_EVALUACION_DESCRIPCION}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

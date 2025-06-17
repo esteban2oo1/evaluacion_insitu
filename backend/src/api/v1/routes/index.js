@@ -27,6 +27,11 @@ const dashboardRoutes = require('./reportes/dashboard.routes');
 const estudiantesRoutes = require('./reportes/estudiantes.routes');
 const docentesRoutes = require('./reportes/docentes.routes');
 
+// descargar informe
+
+const informeRoutes = require('./descargas/informe.routes');
+const backupRoutes = require('./descargas/backup.routes');  
+
 const router = express.Router();
 
 // Ruta base de la API
@@ -42,7 +47,9 @@ router.get('/', (req, res) => {
       academica: '/api/v1/academica',
       dashboard: '/api/v1/dashboard',
       reportesEstudiantes: '/api/v1/reportes/estudiantes',
-      userRoles: '/api/v1/user-roles'
+      userRoles: '/api/v1/user-roles',
+      informeDocentes: '/api/v1/informe-docentes',
+      backup: '/api/v1/backup'
     },
     documentation: '/api-docs'
   });
@@ -75,6 +82,11 @@ router.use('/user-roles', userRoleRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/reportes/estudiantes', estudiantesRoutes);
 router.use('/reportes/docentes', docentesRoutes);
+
+// descargas
+
+router.use('/informe-docentes', informeRoutes);
+router.use('/backup', backupRoutes);
 
 module.exports = router;
 

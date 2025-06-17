@@ -19,12 +19,11 @@ export default function AdminLayout({
         onToggle={toggle} 
       />
       
-      {/* Contenido principal */}
+      {/* Contenido principal - Añadido margin-left para compensar el sidebar fijo */}
       <main className={`flex-1 transition-all duration-300 ease-in-out ${
-        isCollapsed ? 'lg:ml-0' : 'lg:ml-0'
-      } ml-0`}>
-
-        <div className="flex-1">
+        isCollapsed ? 'lg:ml-20' : 'lg:ml-64'
+      } ml-0 min-h-screen`}>
+        <div className="flex-1 p-4 lg:p-0">
           {children}
         </div>
       </main>

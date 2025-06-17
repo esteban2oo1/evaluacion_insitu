@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { BarChart, FileText, Users, FileCode, Download, ChevronRight, Star, X } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { BarChart, FileText, Users, FileCode, Download, ChevronRight, Star, X, LogOut } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { authService } from "@/lib/services/auth"
 import { PerfilEstudiante, PerfilDocente } from "@/lib/types/auth"
@@ -15,12 +15,14 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
   
   // Estados para el perfil de estudiante y docente
   const [perfilEstudiante, setPerfilEstudiante] = useState<PerfilEstudiante | null>(null)
   const [perfilDocente, setPerfilDocente] = useState<PerfilDocente | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
     const cargarPerfil = async () => {
@@ -105,6 +107,32 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
     setIsMobileOpen(!isMobileOpen)
   }
 
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true)
+      
+      // Llamar al servicio de logout
+      authService.logout()
+      
+      toast({
+        title: "Sesión cerrada",
+        description: "Has cerrado sesión exitosamente.",
+        variant: "default",
+      })
+      
+      // Redirigir a la página de login
+      router.push("/login")
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Hubo un problema al cerrar la sesión.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
+
   // Definir el perfil a mostrar dependiendo de los estados
   const mostrarPerfil = perfilEstudiante ? perfilEstudiante : perfilDocente
 
@@ -128,22 +156,10 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
       description: "Permisos usuario"
     },
     {
-      href: "/admin/reportes",
-      icon: FileText,
-      label: "Reportes",
-      description: "Informes sistema"
-    },
-    {
       href: "/admin/formulario",
       icon: FileCode,
       label: "Formulario",
       description: "Crear formularios"
-    },
-    {
-      href: "/admin/informes",
-      icon: Download,
-      label: "Informes",
-      description: "Descargar datos"
     }
   ]
 
@@ -151,7 +167,7 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
   const SidebarContent = ({ isMobile = false }: { isMobile?: boolean }) => (
     <>
       {/* Header */}
-      <div className={`${isCollapsed && !isMobile ? 'p-4' : 'p-6'} border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white`}>
+      <div className={`${isCollapsed && !isMobile ? 'p-4' : 'p-6'} border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white flex-shrink-0`}>
         <div className="animate-fade-in-down flex items-center justify-between">
           <div className="flex items-center">
             <button
@@ -180,7 +196,7 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* Navigation - Ahora con flex-1 y overflow para ser scrolleable */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         <div className="animate-fade-in-up">
           {menuItems.map((item, index) => {
@@ -249,9 +265,10 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
         </div>
       </nav>
 
-      {/* Footer del perfil */}
-      <div className={`${isCollapsed && !isMobile ? 'p-2' : 'p-4'} border-t border-gray-100 bg-gradient-to-r from-gray-50 to-white`}>
-        <div className="animate-fade-in-up animation-delay-500">
+      {/* Footer del perfil con botón de cerrar sesión */}
+      <div className={`${isCollapsed && !isMobile ? 'p-2' : 'p-4'} border-t border-gray-100 bg-gradient-to-r from-gray-50 to-white flex-shrink-0`}>
+        <div className="animate-fade-in-up animation-delay-500 space-y-3">
+          {/* Información del perfil */}
           {isLoading ? (
             <div className="animate-pulse">
               <div className="h-4 bg-gray-200 rounded mb-2"></div>
@@ -306,6 +323,42 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
               </div>
             ) : null
           )}
+
+          {/* Botón de cerrar sesión */}
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className={`w-full group relative flex items-center ${
+              isCollapsed && !isMobile ? 'p-3 justify-center' : 'p-3'
+            } rounded-xl transition-all duration-300 ease-out transform hover:scale-[1.02] text-red-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
+            title={isCollapsed && !isMobile ? "Cerrar sesión" : undefined}
+          >
+            {/* Icono */}
+            <div className={`flex-shrink-0 transition-all duration-300 group-hover:transform group-hover:scale-105 ${
+              isCollapsed && !isMobile ? '' : 'mr-3'
+            }`}>
+              <LogOut className={`h-5 w-5 transition-colors duration-300 ${
+                isLoggingOut ? 'animate-spin' : ''
+              }`} />
+            </div>
+            
+            {/* Contenido del texto */}
+            {(!isCollapsed || isMobile) && (
+              <>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm transition-colors duration-300">
+                    {isLoggingOut ? 'Cerrando...' : 'Cerrar sesión'}
+                  </p>
+                  <p className="text-xs mt-0.5 transition-colors duration-300 text-red-500 group-hover:text-red-600">
+                    Salir del sistema
+                  </p>
+                </div>
+                
+                {/* Chevron indicador */}
+                <ChevronRight className="h-4 w-4 transition-all duration-300 text-red-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-1" />
+              </>
+            )}
+          </button>
         </div>
       </div>
     </>
@@ -333,13 +386,13 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
         id="mobile-sidebar"
         className={`fixed inset-y-0 left-0 z-50 lg:hidden bg-white border-r border-gray-200 flex flex-col shadow-xl transition-transform duration-300 ease-in-out ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full'
-        } w-80`}
+        } w-80 h-screen`}
       >
         <SidebarContent isMobile={true} />
       </div>
 
-      {/* Sidebar desktop */}
-      <div className={`hidden lg:flex bg-white border-r border-gray-200 min-h-screen flex-col shadow-sm transition-all duration-300 ease-in-out ${
+      {/* Sidebar desktop - Cambiado de min-h-screen a h-screen y añadido fixed */}
+      <div className={`hidden lg:flex bg-white border-r border-gray-200 h-screen flex-col shadow-sm transition-all duration-300 ease-in-out fixed left-0 top-0 z-30 ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}>
         <SidebarContent />

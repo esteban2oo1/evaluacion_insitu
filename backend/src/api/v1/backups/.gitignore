@@ -1,0 +1,5 @@
+# Ignorar TODOS los archivos .sql en esta carpeta
+*.sql
+# Pero permitir el README.txt o .gitkeep
+!README.txt
+!.gitkeep
