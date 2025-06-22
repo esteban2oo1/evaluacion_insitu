@@ -5,3 +5,5 @@ export * from './configuracionValoracion';
 export * from './escalaValoracion';
 export * from './tiposEvaluaciones';
 export * from './evaluaciones'; 
+export * from './roles';
+export * from './userRoles';

@@ -9,7 +9,7 @@ const MESSAGES = require('../../../../constants/messages');
 const login = async (req, res, next) => {
   try {
     const { user_username, user_password } = req.body;
-
+    
     if (!user_username || !user_password) {
       return errorResponse(res, {
         code: 400,
@@ -17,7 +17,7 @@ const login = async (req, res, next) => {
         error: 'Usuario y contraseña son requeridos'
       });
     }
-
+    
     // Buscar usuario por username
     const user = await UserAuthModel.getUserByUsername(user_username);
     if (!user) {
@@ -27,7 +27,7 @@ const login = async (req, res, next) => {
         error: 'Usuario no encontrado'
       });
     }
-
+    
     // Verificar contraseña encriptada en MD5
     const hashedPassword = md5(user_password);
     if (user.user_password !== hashedPassword) {
@@ -37,7 +37,7 @@ const login = async (req, res, next) => {
         error: 'Contraseña incorrecta'
       });
     }
-
+    
     // Verificar si el usuario está activo
     if (user.user_statusid !== '1') {
       return errorResponse(res, {
@@ -46,24 +46,45 @@ const login = async (req, res, next) => {
         error: 'Usuario inactivo'
       });
     }
-
-    // Generar JWT
+    
+    // Obtener roles adicionales del usuario
+    const additionalRoles = await VistaProfileModel.getRolesAdicionales(user.user_id);
+    
+    // Preparar array de nombres de roles adicionales
+    const additionalRoleNames = additionalRoles.map(role => role.NOMBRE_ROL);
+    
+    // Generar JWT incluyendo roles adicionales
     const token = jwt.sign(
       { 
         userId: user.user_id,
         username: user.user_username,
         roleId: user.user_idrole,
-        roleName: user.role_name
+        roleName: user.role_name,
+        additionalRoles: additionalRoleNames
       },
       JWT_SECRET,
       { expiresIn: '1h' }
     );
-
-    // Responder con éxito
+    
+    const userName = user.user_name
+      .split(' ') // Divide el nombre completo en partes
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) // Capitaliza cada palabra
+      .join(' '); // Vuelve a juntar las palabras con un espacio
+    
+    // Responder con éxito incluyendo roles adicionales
     return successResponse(res, {
       code: 200,
-      message: MESSAGES.AUTH.LOGIN_SUCCESS,
-      data: { token }
+      message: `${userName} 👋`,
+      data: { 
+        token,
+        user: {
+          id: user.user_id,
+          name: userName,
+          username: user.user_username,
+          primaryRole: user.role_name,
+          additionalRoles: additionalRoleNames
+        }
+      }
     });
   } catch (error) {
     console.error('Error en login:', error);

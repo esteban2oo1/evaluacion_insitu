@@ -55,20 +55,24 @@ export default function LoginPage() {
           localStorage.removeItem("rememberedUsername")
         }
 
-        // Obtener perfil del usuario
-        const profile = await authService.getProfile()
+        // Obtener datos del usuario desde la respuesta
+        const userData = response.data.user
 
-        const roles = [
-          profile.data.roles.principal.nombre.toLowerCase(),
-          ...profile.data.roles.adicionales.map((rol) => rol.nombre.toLowerCase()),
+        // ✅ NUEVO: Guardar datos del usuario en localStorage
+        localStorage.setItem("user", JSON.stringify(userData))
+
+        // Combinar rol principal con roles adicionales
+        const allRoles = [
+          userData.primaryRole.toLowerCase(),
+          ...userData.additionalRoles.map((rol) => rol.toLowerCase())
         ]
 
         // Determinar ruta de redirección
         let redirectPath = ""
-        if (roles.includes("admin") || roles.includes("director de programa")) {
+        if (allRoles.includes("admin") || allRoles.includes("director de programa")) {
           redirectPath = "/admin/dashboard"
         } else {
-          const userRole = profile.data.roles.principal.nombre.toLowerCase()
+          const userRole = userData.primaryRole.toLowerCase()
           switch (userRole) {
             case "estudiante":
               redirectPath = "/estudiante/bienvenida"
@@ -89,8 +93,8 @@ export default function LoginPage() {
 
         // Mostrar mensaje de bienvenida
         toast({
-          title: response.message,
-          description: `Bienvenido, ${profile.data.nombre_completo}`,
+          title: "Bienvenido",
+          description: response.message,
         })
 
         // Cambiar a estado de redirección después de un breve delay

@@ -3,6 +3,26 @@ export interface Roles {
   NOMBRE_ROL: string;
 }
 
+export interface UserRolesRequest {
+  userId: number;  
+  roleId: number;
+}
+
+export interface UserRoles {
+  id: number;
+  user_id: number;
+  role_name: string;
+  user_name: string
+}
+
+export interface User {
+  user_id: number;
+  user_name: string;
+  user_username: string;
+  user_email: string;
+  role_name: string;
+}
+
 export interface AspectoEvaluacion {
   ID: number;
   ETIQUETA: string;

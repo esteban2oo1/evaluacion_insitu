@@ -1,78 +1,86 @@
-// roles/componentes/views/RolesView.tsx
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Roles } from "@/lib/types/evaluacionInsitu";
-import { Edit, Trash2, Plus, Shield, Users } from "lucide-react";
+import { UserRoles } from "@/lib/types/evaluacionInsitu";
+import { Edit, Trash2, Plus, UserCheck, User, Shield, Users } from "lucide-react";
 
-interface RolesViewProps {
-  roles: Roles[];
-  setModalRol: (value: any) => void;
-  handleEliminarRol: (rol: Roles) => void;
+interface UserRolesViewProps {
+  userRoles: UserRoles[];
+  setModalUserRol: (value: any) => void;
+  handleEliminarUserRol: (userRol: UserRoles) => void;
 }
 
-export function RolesView({
-  roles,
-  setModalRol,
-  handleEliminarRol,
-}: RolesViewProps) {
+export function UserRolesView({
+  userRoles,
+  setModalUserRol,
+  handleEliminarUserRol,
+}: UserRolesViewProps) {
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center gap-3">
           <div className="p-2 bg-primary/10 rounded-lg">
-            <Shield className="h-6 w-6 text-primary" />
+            <UserCheck className="h-6 w-6 text-primary" />
           </div>
           <div>
             <CardTitle className="flex items-center gap-2">
-              Gestión de Roles
+              Gestión de Roles de Usuario
               <Badge variant="secondary" className="text-xs">
                 <Users className="h-3 w-3 mr-1" />
-                {roles.length} roles
+                {userRoles.length} asignaciones
               </Badge>
             </CardTitle>
             <CardDescription>
-              Administre los roles de usuario del sistema
+              Administre las asignaciones de roles a usuarios del sistema
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {roles.length === 0 ? (
+        {userRoles.length === 0 ? (
           <div className="text-center py-12">
-            <Shield className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-muted-foreground mb-2">
-              No hay roles registrados
+              No hay asignaciones de roles
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Comience creando el primer rol del sistema
+              Comience asignando roles a los usuarios del sistema
             </p>
             <Button
-              onClick={() => setModalRol({ isOpen: true, rol: undefined })}
+              onClick={() => setModalUserRol({ isOpen: true, userRol: undefined })}
               className="inline-flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              Crear Primer Rol
+              Crear Primera Asignación
             </Button>
           </div>
         ) : (
           <>
             <div className="grid gap-4">
-              {roles.map((rol) => (
+              {userRoles.map((userRol) => (
                 <Card
-                  key={rol.ID}
+                  key={userRol.id}
                   className="transition-all duration-200 hover:shadow-md border border-muted hover:border-primary/20"
                 >
                   <CardContent className="p-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div className="flex items-center gap-4">
                         <div className="p-2 bg-primary/10 rounded-lg">
-                          <Shield className="h-5 w-5 text-primary" />
+                          <UserCheck className="h-5 w-5 text-primary" />
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-lg mb-1">
-                            {rol.NOMBRE_ROL}
+                          <h3 className="font-semibold text-lg mb-2">
+                            <span className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              {userRol.user_name}
+                            </span>
                           </h3>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <Badge className="flex items-center gap-1">
+                              <Shield className="h-3 w-3" />
+                              {userRol.role_name}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
                       <div className="flex gap-2 self-start sm:self-center">
@@ -80,12 +88,12 @@ export function RolesView({
                           variant="ghost"
                           size="icon"
                           onClick={() =>
-                            setModalRol({
+                            setModalUserRol({
                               isOpen: true,
-                              rol,
+                              userRol,
                             })
                           }
-                          title="Editar rol"
+                          title="Editar asignación de rol"
                           className="hover:bg-primary/10 hover:text-primary"
                         >
                           <Edit className="h-4 w-4" />
@@ -93,8 +101,8 @@ export function RolesView({
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleEliminarRol(rol)}
-                          title="Eliminar rol"
+                          onClick={() => handleEliminarUserRol(userRol)}
+                          title="Eliminar asignación de rol"
                           className="hover:bg-destructive/10 hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -109,10 +117,10 @@ export function RolesView({
             <div className="pt-4 border-t">
               <Button
                 className="w-full"
-                onClick={() => setModalRol({ isOpen: true, rol: undefined })}
+                onClick={() => setModalUserRol({ isOpen: true, userRol: undefined })}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Agregar Nuevo Rol
+                Agregar Nueva Asignación de Rol
               </Button>
             </div>
           </>

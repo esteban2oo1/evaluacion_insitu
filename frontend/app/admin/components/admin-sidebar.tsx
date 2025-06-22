@@ -6,7 +6,14 @@ import { usePathname, useRouter } from "next/navigation"
 import { BarChart, FileText, Users, FileCode, Download, ChevronRight, Star, X, LogOut } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { authService } from "@/lib/services/auth"
-import { PerfilEstudiante, PerfilDocente } from "@/lib/types/auth"
+
+interface User {
+  id: number
+  name: string
+  username: string
+  primaryRole: string
+  additionalRoles: string[]
+}
 
 interface AdminSidebarProps {
   isCollapsed?: boolean
@@ -17,53 +24,46 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
   const pathname = usePathname()
   const router = useRouter()
   
-  // Estados para el perfil de estudiante y docente
-  const [perfilEstudiante, setPerfilEstudiante] = useState<PerfilEstudiante | null>(null)
-  const [perfilDocente, setPerfilDocente] = useState<PerfilDocente | null>(null)
+  // Estado simplificado para usuario
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isMobileOpen, setIsMobileOpen] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   useEffect(() => {
-    const cargarPerfil = async () => {
+    const cargarUsuario = () => {
       try {
         setIsLoading(true)
-        const response = await authService.getProfile()
-        if (response.success) {
-          // Verificamos si es estudiante o docente y seteamos el perfil adecuado
-          if (response.data.tipo === "estudiante") {
-            const perfilData = response.data as PerfilEstudiante
-            setPerfilEstudiante(perfilData)
-          } else if (response.data.tipo === "docente") {
-            const perfilData = response.data as PerfilDocente
-            setPerfilDocente(perfilData)
-          } else {
-            toast({
-              title: "Error",
-              description: "Tipo de usuario no reconocido.",
-              variant: "destructive",
-            })
-          }
+        
+        // Obtener datos del usuario desde localStorage (guardados durante el login)
+        const userData = localStorage.getItem("user")
+        
+        if (userData) {
+          const parsedUser = JSON.parse(userData)
+          setUser(parsedUser)
         } else {
+          // Si no hay datos en localStorage, redirigir al login
           toast({
-            title: "Error",
-            description: "No se pudo cargar el perfil.",
+            title: "Sesión expirada",
+            description: "Por favor, inicia sesión nuevamente.",
             variant: "destructive",
           })
+          router.push("/login")
         }
       } catch (error) {
         toast({
           title: "Error",
-          description: "Hubo un problema al cargar el perfil.",
+          description: "Hubo un problema al cargar los datos del usuario.",
           variant: "destructive",
         })
+        router.push("/login")
       } finally {
         setIsLoading(false)
       }
     }
 
-    cargarPerfil()
-  }, [toast])
+    cargarUsuario()
+  }, [router])
 
   // Cerrar sidebar móvil cuando cambie la ruta
   useEffect(() => {
@@ -84,7 +84,7 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
 
     if (isMobileOpen) {
       document.addEventListener('mousedown', handleClickOutside)
-      document.body.style.overflow = 'hidden' // Prevenir scroll en móvil
+      document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = 'unset'
     }
@@ -133,8 +133,15 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
     }
   }
 
-  // Definir el perfil a mostrar dependiendo de los estados
-  const mostrarPerfil = perfilEstudiante ? perfilEstudiante : perfilDocente
+  // Función para obtener el rol principal a mostrar
+  const getRoleToDisplay = (user: User) => {
+    // Si tiene rol de Admin, mostrarlo
+    if (user.additionalRoles.includes("Admin")) {
+      return "Admin"
+    }
+    // Si no, mostrar el rol principal
+    return user.primaryRole
+  }
 
   const menuItems = [
     {
@@ -196,7 +203,7 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
         </div>
       </div>
 
-      {/* Navigation - Ahora con flex-1 y overflow para ser scrolleable */}
+      {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         <div className="animate-fade-in-up">
           {menuItems.map((item, index) => {
@@ -274,7 +281,7 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
               <div className="h-4 bg-gray-200 rounded mb-2"></div>
               {(!isCollapsed || isMobile) && <div className="h-3 bg-gray-200 rounded w-3/4"></div>}
             </div>
-          ) : mostrarPerfil ? (
+          ) : user ? (
             <div className={`bg-white rounded-lg shadow-sm border border-gray-100 transition-all duration-300 hover:shadow-md ${
               isCollapsed && !isMobile ? 'p-2' : 'p-3'
             }`}>
@@ -284,32 +291,32 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
                     isCollapsed && !isMobile ? 'w-8 h-8' : 'w-10 h-10'
                   }`}>
                     <span className={`text-white font-semibold ${isCollapsed && !isMobile ? 'text-xs' : 'text-sm'}`}>
-                      {mostrarPerfil.nombre_completo.charAt(0).toUpperCase()}
+                      {user.name.charAt(0).toUpperCase()}
                     </span>
                   </div>
                 </div>
                 
                 {(!isCollapsed || isMobile) && (
                   <div className="flex-1 min-w-0">
-                    {mostrarPerfil.nombre_completo.length > 24 ? (
+                    {user.name.length > 24 ? (
                       <div className="marquee-container">
                         <div className="marquee-content font-semibold text-sm text-gray-800">
-                          <span className="marquee-text">{mostrarPerfil.nombre_completo}</span>
-                          <span className="marquee-text">{mostrarPerfil.nombre_completo}</span>
+                          <span className="marquee-text">{user.name}</span>
+                          <span className="marquee-text">{user.name}</span>
                         </div>
                       </div>
                     ) : (
                       <p className="font-semibold text-sm text-gray-800 truncate">
-                        {mostrarPerfil.nombre_completo}
+                        {user.name}
                       </p>
                     )}
 
                     <div className="flex items-center space-x-2 mt-1">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Admin
+                        {getRoleToDisplay(user)}
                       </span>
                       <p className="text-xs text-gray-500 truncate">
-                        {mostrarPerfil.documento}
+                        {user.username}
                       </p>
                     </div>
                   </div>
@@ -319,7 +326,7 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
           ) : (
             !isCollapsed || isMobile ? (
               <div className="text-center text-gray-500 text-sm">
-                <p>Perfil no disponible</p>
+                <p>Usuario no disponible</p>
               </div>
             ) : null
           )}
@@ -366,7 +373,7 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
 
   return (
     <>
-      {/* Botón toggle móvil - usando BarChart */}
+      {/* Botón toggle móvil */}
       <button
         id="mobile-toggle"
         onClick={handleToggleMobile}
@@ -391,7 +398,7 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
         <SidebarContent isMobile={true} />
       </div>
 
-      {/* Sidebar desktop - Cambiado de min-h-screen a h-screen y añadido fixed */}
+      {/* Sidebar desktop */}
       <div className={`hidden lg:flex bg-white border-r border-gray-200 h-screen flex-col shadow-sm transition-all duration-300 ease-in-out fixed left-0 top-0 z-30 ${
         isCollapsed ? 'w-20' : 'w-64'
       }`}>
@@ -400,7 +407,6 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
 
       {/* Estilos CSS personalizados */}
       <style jsx global>{`
-        /* Animación marquee mejorada */
         .marquee-container {
           width: 160px;
           overflow: hidden;
@@ -484,7 +490,6 @@ export function AdminSidebar({ isCollapsed = false, onToggle }: AdminSidebarProp
           animation-delay: 500ms;
         }
 
-        /* Prevenir scroll horizontal en móvil */
         @media (max-width: 1024px) {
           body {
             overflow-x: hidden;

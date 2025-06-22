@@ -31,6 +31,41 @@ const getAllUserRoles = async (req, res, next) => {
   }
 };
 
+const searchUser = async (req, res, next) => {
+  try {
+    // Obtener el username desde los parámetros de la URL o query string
+    const { username } = req.params; // Si viene por URL: /search/:username
+    // O si prefieres por query: const { username } = req.query; // /search?username=valor
+    
+    // Validar que se proporcione el username
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username is required'
+      });
+    }
+
+    // Buscar el usuario
+    const user = await UserRoleModel.searchUser(username);
+    
+    // Verificar si se encontró el usuario
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    return successResponse(res, {
+      data: user,
+      message: MESSAGES.GENERAL.FETCH_SUCCESS
+    });
+  } catch (error) {
+    console.error('Error searching user:', error);
+    next(error);
+  }
+};
+
 // Asignar un rol a un usuario
 const assignRole = async (req, res, next) => {
   try {
@@ -89,6 +124,7 @@ const removeRole = async (req, res, next) => {
 module.exports = {
   getUserRoles,
   getAllUserRoles,
+  searchUser,
   assignRole,
   updateRole,
   removeRole
