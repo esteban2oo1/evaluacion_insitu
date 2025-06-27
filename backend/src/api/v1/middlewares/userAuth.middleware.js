@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = process.env;
-const { getPool } = require('../../../db');
+const { getPool, getSecurityPool } = require('../../../db');
 
 const verifyToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -34,11 +34,12 @@ const checkRole = (allowedRoles) => async (req, res, next) => {
 
     const userId = req.user.userId;
     const pool = await getPool();
+    const securityPool = await getSecurityPool();
 
     // Primero verificamos en DATALOGIN
-    const [dataloginRows] = await pool.query(
+    const [dataloginRows] = await securityPool.query(
       `SELECT user_idrole, role_name 
-       FROM DATALOGIN 
+       FROM datalogin 
        WHERE user_id = ?`,
       [userId]
     );

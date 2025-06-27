@@ -7,14 +7,14 @@ import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Search, ChevronDown, ChevronRight, MessageSquare, Check, X, BookOpen } from "lucide-react"
+import { Search, ChevronDown, ChevronRight, MessageSquare, Check, X, BookOpen, Download } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useFormContext } from "@/lib/form-context"
 import { profesoresService } from "@/lib/services/profesores"
 import { AsignaturaDocente, AspectoPuntaje, ProfesoresParams } from "@/lib/types/profesores"
-import Filtros from "@/app/admin/components/filters" // Ajustar la ruta según tu estructura
+import Filtros from "@/app/admin/components/filters"
+import api from "@/lib/api"
 
-// Interfaz para el estado de filtros
 interface FiltrosState {
   configuracionSeleccionada: number | null
   periodoSeleccionado: string
@@ -27,7 +27,6 @@ interface FiltrosState {
 export default function ProfesoresPage() {
   const { toast } = useToast()
   
-  // Estados para filtros
   const [filtros, setFiltros] = useState<FiltrosState>({
     configuracionSeleccionada: null,
     periodoSeleccionado: "",
@@ -37,7 +36,6 @@ export default function ProfesoresPage() {
     grupoSeleccionado: ""
   })
   
-  // Estados existentes
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedTeacher, setSelectedTeacher] = useState<string | null>(null)
   const [showEvaluations, setShowEvaluations] = useState<string | null>(null)
@@ -45,13 +43,12 @@ export default function ProfesoresPage() {
   const [selectedCourse, setSelectedCourse] = useState<{ teacherId: string; courseId: number } | null>(null)
   const [asignaturas, setAsignaturas] = useState<AsignaturaDocente[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingInforme, setLoadingInforme] = useState(false)
   const [aspectosEvaluados, setAspectosEvaluados] = useState<Record<string, AspectoPuntaje[]>>({})
   const [loadingAspectos, setLoadingAspectos] = useState<Record<string, boolean>>({})
 
-  // Usar el contexto para los aspectos
   const { activeAspectIds } = useFormContext()
 
-  // Función para convertir filtros a parámetros del endpoint
   const convertirFiltrosAParams = useCallback((filtros: FiltrosState): ProfesoresParams => {
     const params: ProfesoresParams = {}
     
@@ -77,7 +74,6 @@ export default function ProfesoresPage() {
     return params
   }, [])
 
-  // Función para cargar datos desde el endpoint
   const cargarDatos = useCallback(async (filtrosActuales: FiltrosState) => {
     setLoading(true)
     try {
@@ -85,7 +81,6 @@ export default function ProfesoresPage() {
       const data = await profesoresService.getAsignaturas(params)
       setAsignaturas(data)
       
-      // Limpiar estados relacionados cuando cambian los datos
       setSelectedTeacher(null)
       setShowEvaluations(null)
       setSelectedAspect(null)
@@ -104,16 +99,14 @@ export default function ProfesoresPage() {
     }
   }, [convertirFiltrosAParams, toast])
 
-  // Funciones para manejar filtros
   const handleFiltrosChange = useCallback((nuevosFiltros: FiltrosState) => {
     setFiltros(nuevosFiltros)
-    // Cargar datos automáticamente cuando cambian los filtros
     cargarDatos(nuevosFiltros)
   }, [cargarDatos])
 
   const limpiarFiltros = useCallback(() => {
     const filtrosLimpiados = {
-      configuracionSeleccionada: filtros.configuracionSeleccionada, // Mantener la configuración seleccionada
+      configuracionSeleccionada: filtros.configuracionSeleccionada,
       periodoSeleccionado: "",
       sedeSeleccionada: "",
       programaSeleccionado: "",
@@ -124,7 +117,6 @@ export default function ProfesoresPage() {
     cargarDatos(filtrosLimpiados)
   }, [filtros.configuracionSeleccionada, cargarDatos])
 
-  // Agrupar asignaturas por docente (ya no necesitamos filtrar aquí porque viene filtrado del endpoint)
   const asignaturasPorDocente = useMemo(() => {
     const agrupadas: Record<string, Record<string, AsignaturaDocente[]>> = {}
     
@@ -141,7 +133,6 @@ export default function ProfesoresPage() {
     return agrupadas
   }, [asignaturas])
 
-  // Obtener docentes únicos de las asignaturas
   const docentes = useMemo(() => {
     const docentesSet = new Set(asignaturas.map(asig => asig.ID_DOCENTE))
     return Array.from(docentesSet).map(id => {
@@ -154,11 +145,9 @@ export default function ProfesoresPage() {
     })
   }, [asignaturas])
 
-  // Filtrar docentes cuando cambian los criterios de búsqueda (solo búsqueda local)
   const filteredTeachers = useMemo(() => {
     let result = docentes
 
-    // Filtrar por término de búsqueda
     if (searchTerm) {
       result = result.filter(
         (teacher) =>
@@ -170,12 +159,10 @@ export default function ProfesoresPage() {
     return result
   }, [docentes, searchTerm])
 
-  // Cargar datos iniciales
   useEffect(() => {
     cargarDatos(filtros)
-  }, []) // Solo al montar el componente
+  }, [])
 
-  // Función para cargar aspectos evaluados
   const cargarAspectosEvaluados = useCallback(async (idDocente: string) => {
     if (aspectosEvaluados[idDocente]) return
 
@@ -195,7 +182,6 @@ export default function ProfesoresPage() {
     }
   }, [aspectosEvaluados, toast])
 
-  // Función para manejar la selección de un profesor
   const handleSelectTeacher = useCallback((id: string) => {
     setSelectedTeacher((prevId) => (prevId === id ? null : id))
     setShowEvaluations((prevId) => (prevId === id ? null : prevId))
@@ -203,7 +189,6 @@ export default function ProfesoresPage() {
     setSelectedCourse(null)
   }, [])
 
-  // Función para mostrar/ocultar evaluaciones
   const toggleEvaluations = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation()
     setShowEvaluations((prevId) => {
@@ -216,7 +201,6 @@ export default function ProfesoresPage() {
     setSelectedAspect(null)
   }, [cargarAspectosEvaluados])
 
-  // Función para mostrar/ocultar comentarios de un aspecto
   const toggleAspect = useCallback((teacherId: string, aspectId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     setSelectedAspect((prev) =>
@@ -224,7 +208,6 @@ export default function ProfesoresPage() {
     )
   }, [])
 
-  // Función para mostrar/ocultar detalles de un curso
   const toggleCourse = useCallback((teacherId: string, courseId: number, e: React.MouseEvent) => {
     e.stopPropagation()
     setSelectedCourse((prev) =>
@@ -232,7 +215,6 @@ export default function ProfesoresPage() {
     )
   }, [])
 
-  // Funciones de utilidad para colores
   const getScoreColor = useCallback((score: number) => {
     if (score >= 90) return "bg-green-500"
     if (score >= 80) return "bg-blue-500"
@@ -247,7 +229,6 @@ export default function ProfesoresPage() {
     return "text-red-700"
   }, [])
 
-  // Verificar si hay filtros aplicados
   const hayFiltrosAplicados = useMemo(() => {
     return filtros.periodoSeleccionado || 
            filtros.sedeSeleccionada || 
@@ -255,6 +236,122 @@ export default function ProfesoresPage() {
            filtros.semestreSeleccionado || 
            filtros.grupoSeleccionado
   }, [filtros])
+
+  // Función actualizada para generar el texto del informe incluyendo configuración y período
+  const getTextoInforme = useCallback(() => {
+    const partes = []
+    
+    // Agregar configuración y período si están disponibles
+    if (filtros.configuracionSeleccionada) {
+      partes.push(`Config. ${filtros.configuracionSeleccionada}`)
+    }
+    if (filtros.periodoSeleccionado) {
+      partes.push(`${filtros.periodoSeleccionado}`)
+    }
+    if (filtros.sedeSeleccionada) {
+      partes.push(filtros.sedeSeleccionada)
+    }
+    if (filtros.programaSeleccionado) {
+      partes.push(filtros.programaSeleccionado)
+    }
+    if (filtros.semestreSeleccionado) {
+      partes.push(`Sem. ${filtros.semestreSeleccionado}`)
+    }
+    
+    return partes.length > 0 ? partes.join(' - ') : "Informe General"
+  }, [filtros])
+
+  // Condición para habilitar el botón: solo requiere sede seleccionada
+  const puedeDescargarInforme = useMemo(() => {
+    return !!filtros.sedeSeleccionada && !loadingInforme
+  }, [filtros.sedeSeleccionada, loadingInforme])
+
+ const handleDescargarInforme = useCallback(async () => {
+  if (!puedeDescargarInforme) {
+    toast({
+      title: "Seleccione una sede",
+      description: "Por favor seleccione una sede para generar el informe",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  setLoadingInforme(true);
+  const tipoInforme = getTextoInforme();
+
+  try {
+    toast({
+      title: "Generando informe",
+      description: `Preparando informe para ${tipoInforme}`,
+      variant: "default",
+    });
+
+    // Preparar los parámetros para el endpoint
+    const params = {
+      idConfiguracion: filtros.configuracionSeleccionada?.toString(),
+      periodo: filtros.periodoSeleccionado,
+      nombreSede: filtros.sedeSeleccionada,
+      nomPrograma: filtros.programaSeleccionado,
+      semestre: filtros.semestreSeleccionado,
+      grupo: filtros.grupoSeleccionado,
+    };
+
+    // Filtrar parámetros no definidos
+    const filteredParams = Object.fromEntries(
+      Object.entries(params).filter(([_, value]) => value !== undefined && value !== null)
+    );
+
+    // Llamar al endpoint usando axios con responseType 'blob'
+    const response = await api.get('/informe-docentes', {
+      params: filteredParams,
+      responseType: 'blob', // Importante para manejar la descarga de archivos
+    });
+
+    // Obtener el blob del archivo
+    const blob = new Blob([response.data], {
+      type: response.headers['content-type'],
+    });
+
+    // Crear URL temporal para la descarga
+    const url = window.URL.createObjectURL(blob);
+
+    // Crear elemento de descarga
+    const link = document.createElement('a');
+    link.href = url;
+
+    // Generar nombre del archivo basado en los filtros
+    const nombreArchivo = `Informe_Docentes_${
+      filtros.sedeSeleccionada?.replace(/\s+/g, '_') || 'reporte'
+    }_${new Date().toISOString().split('T')[0]}.docx`;
+    link.download = nombreArchivo;
+
+    // Ejecutar descarga
+    document.body.appendChild(link);
+    link.click();
+
+    // Limpiar
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    toast({
+      title: "Informe descargado",
+      description: `El informe "${nombreArchivo}" se ha descargado correctamente`,
+      variant: "default",
+    });
+
+  } catch (error) {
+    console.error('Error al descargar informe:', error);
+    let errorMessage = "Ocurrió un error al descargar el informe. Por favor, inténtelo de nuevo más tarde.";
+
+    toast({
+      title: "Error al descargar",
+      description: errorMessage,
+      variant: "destructive",
+    });
+  } finally {
+    setLoadingInforme(false);
+  }
+}, [filtros, puedeDescargarInforme, toast, getTextoInforme]);
 
   if (loading) {
     return (
@@ -272,28 +369,64 @@ export default function ProfesoresPage() {
       </header>
 
       <main className="p-6">
-        {/* Componente de Filtros */}
-        <Filtros 
-          filtros={filtros}
-          onFiltrosChange={handleFiltrosChange}
-          onLimpiarFiltros={limpiarFiltros}
-          loading={loading}
-        />
+        {/* Sección de Filtros */}
+        <div className="mb-6">
+          <Filtros 
+            filtros={filtros}
+            onFiltrosChange={handleFiltrosChange}
+            onLimpiarFiltros={limpiarFiltros}
+            loading={loading}
+          />
+        </div>
 
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Lista de Profesores</CardTitle>
-            <CardDescription>
-              Evaluaciones y desempeño de los docentes
-              {hayFiltrosAplicados && (
-                <span className="ml-2 text-blue-600">
-                  (Filtros aplicados)
-                </span>
-              )}
-            </CardDescription>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <CardTitle>Lista de Profesores</CardTitle>
+                <CardDescription>
+                  Evaluaciones y desempeño de los docentes
+                  {hayFiltrosAplicados && (
+                    <span className="ml-2 text-blue-600">
+                      (Filtros aplicados)
+                    </span>
+                  )}
+                </CardDescription>
+              </div>
+              
+              {/* Botón de descarga con funcionalidad completa */}
+              <div className="flex flex-col items-end gap-2">
+                <Button 
+                  variant="outline" 
+                  className="bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-700 border-blue-200 shadow-sm transition-all duration-200 flex items-center gap-2 px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={handleDescargarInforme}
+                  disabled={!puedeDescargarInforme}
+                >
+                  {loadingInforme ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-600"></div>
+                      Generando...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Descargar Informe
+                    </>
+                  )}
+                </Button>
+                {puedeDescargarInforme ? (
+                  <span className="text-xs text-gray-500 text-right max-w-48">
+                    {getTextoInforme()}
+                  </span>
+                ) : (
+                  <span className="text-xs text-red-500 text-right">
+                    {loadingInforme ? "Generando informe..." : "Seleccione una sede"}
+                  </span>
+                )}
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            {/* Búsqueda */}
             <div className="flex flex-col md:flex-row gap-4 mb-6">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -306,7 +439,6 @@ export default function ProfesoresPage() {
               </div>
             </div>
 
-            {/* Estadísticas rápidas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h3 className="text-sm font-medium text-blue-900">Total Profesores</h3>
@@ -324,7 +456,6 @@ export default function ProfesoresPage() {
               </div>
             </div>
 
-            {/* Lista de profesores */}
             <div className="space-y-4">
               {filteredTeachers.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
@@ -376,7 +507,6 @@ export default function ProfesoresPage() {
                             </div>
                           </div>
 
-                          {/* Asignaturas por semestre */}
                           <div className="mb-4">
                             <h4 className="font-medium mb-2">Asignaturas</h4>
                             <div className="space-y-4">

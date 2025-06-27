@@ -17,7 +17,6 @@ export default function LoginPage() {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [isPageLoaded, setIsPageLoaded] = useState(false)
   const [loginStage, setLoginStage] = useState<'idle' | 'loading' | 'success' | 'redirecting'>('idle')
@@ -35,7 +34,9 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    
+    // Cambiar inmediatamente a estado de carga
+    setLoginStage('loading')
 
     try {
       const response = await authService.login({
@@ -44,25 +45,34 @@ export default function LoginPage() {
       })
 
       if (response.success) {
+        // Cambiar a estado de éxito
+        setLoginStage('success')
+
+        // Manejar recordar usuario
         if (rememberMe) {
           localStorage.setItem("rememberedUsername", username)
         } else {
           localStorage.removeItem("rememberedUsername")
         }
 
-        const profile = await authService.getProfile()
+        // Obtener datos del usuario desde la respuesta
+        const userData = response.data.user
 
-        const roles = [
-          profile.data.roles.principal.nombre.toLowerCase(),
-          ...profile.data.roles.adicionales.map((rol) => rol.nombre.toLowerCase()),
+        // ✅ NUEVO: Guardar datos del usuario en localStorage
+        localStorage.setItem("user", JSON.stringify(userData))
+
+        // Combinar rol principal con roles adicionales
+        const allRoles = [
+          userData.primaryRole.toLowerCase(),
+          ...userData.additionalRoles.map((rol) => rol.toLowerCase())
         ]
 
+        // Determinar ruta de redirección
         let redirectPath = ""
-
-        if (roles.includes("admin") || roles.includes("director de programa")) {
+        if (allRoles.includes("admin") || allRoles.includes("director de programa")) {
           redirectPath = "/admin/dashboard"
         } else {
-          const userRole = profile.data.roles.principal.nombre.toLowerCase()
+          const userRole = userData.primaryRole.toLowerCase()
           switch (userRole) {
             case "estudiante":
               redirectPath = "/estudiante/bienvenida"
@@ -76,31 +86,64 @@ export default function LoginPage() {
                 description: "Rol de usuario no reconocido",
                 variant: "destructive",
               })
+              setLoginStage('idle')
               return
           }
         }
 
+        // Mostrar mensaje de bienvenida
         toast({
-          title: response.message,
-          description: `Bienvenido, ${profile.data.nombre_completo}`,
+          title: "Bienvenido",
+          description: response.message,
         })
 
+        // Cambiar a estado de redirección después de un breve delay
         setTimeout(() => {
-            setLoginStage('redirecting')
-          }, 500)
+          setLoginStage('redirecting')
+        }, 800)
 
-          setTimeout(() => {
-            router.replace(redirectPath)
-          }, 1200)
+        // Redirigir después de mostrar el mensaje
+        setTimeout(() => {
+          router.replace(redirectPath)
+        }, 1500)
       }
     } catch (error: any) {
+      // Resetear estado en caso de error
+      setLoginStage('idle')
+      
       toast({
         title: "Error de autenticación",
         description: error.message || "Credenciales incorrectas",
         variant: "destructive",
       })
-    } finally {
-      setIsLoading(false)
+    }
+  }
+
+  const getButtonContent = () => {
+    switch (loginStage) {
+      case 'loading':
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            Verificando...
+          </div>
+        )
+      case 'success':
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 text-green-400">✓</div>
+            ¡Bienvenido!
+          </div>
+        )
+      case 'redirecting':
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            Redirigiendo...
+          </div>
+        )
+      default:
+        return "Acceder"
     }
   }
 
@@ -143,7 +186,6 @@ export default function LoginPage() {
                 <strong>matriculados</strong>
               </span>.
             </CardDescription>
-
           </CardHeader>
 
           <form onSubmit={handleLogin} className="w-full">
@@ -151,14 +193,15 @@ export default function LoginPage() {
               
               {/* Campo de usuario */}
               <div className="relative group">
-                <UserRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 group-focus-within:text-gray-700 transition-colors duration-200 z-10 pointer-events-none " size={18} />
+                <UserRound className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 group-focus-within:text-gray-700 transition-colors duration-200 z-10 pointer-events-none" size={18} />
                 <Input
                   id="username"
                   placeholder="Documento"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
-                  className="pl-10 pr-3 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 hover:border-gray-400 transition-all duration-200 transform focus:scale-[1.01] relative"
+                  disabled={loginStage !== 'idle'}
+                  className="pl-10 pr-3 py-2 w-full border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 hover:border-gray-400 transition-all duration-200 transform focus:scale-[1.01] relative disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -171,12 +214,14 @@ export default function LoginPage() {
                   placeholder="Contraseña"
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pr-10 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 hover:border-gray-400 transition-all duration-200 transform focus:scale-[1.01]"
+                  disabled={loginStage !== 'idle'}
+                  className="pr-10 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600 hover:border-gray-400 transition-all duration-200 transform focus:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-500 hover:text-gray-700 focus:text-gray-700 transition-all duration-200 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-opacity-20 rounded"
+                  disabled={loginStage !== 'idle'}
+                  className="absolute right-3 top-3 text-gray-500 hover:text-gray-700 focus:text-gray-700 transition-all duration-200 transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-opacity-20 rounded disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -185,15 +230,13 @@ export default function LoginPage() {
 
               <div className="flex items-center justify-between text-sm text-gray-600">
                 <label className="flex items-center gap-2 cursor-pointer group">
-                  {/* Checkbox */}
                   <input
                     type="checkbox"
                     checked={rememberMe}
                     onChange={() => setRememberMe(!rememberMe)}
-                    className="accent-blue-600 transform group-hover:scale-110 transition-transform duration-200"
+                    disabled={loginStage !== 'idle'}
+                    className="accent-blue-600 transform group-hover:scale-110 transition-transform duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
-                  
-                  {/* Span */}
                   <span className="group-hover:text-gray-800 transition-colors duration-200 group-hover:scale-105 transition-transform duration-200 inline-block">
                     Recordarme
                   </span>
@@ -217,25 +260,7 @@ export default function LoginPage() {
                 type="submit" 
                 disabled={loginStage !== 'idle'}
               >
-                {loginStage === 'loading' && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Verificando...
-                  </div>
-                )}
-                {loginStage === 'success' && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 text-green-500">✓</div>
-                    ¡Bienvenido!
-                  </div>
-                )}
-                {loginStage === 'redirecting' && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Redirigiendo...
-                  </div>
-                )}
-                {loginStage === 'idle' && "Acceder"}
+                {getButtonContent()}
               </Button>
               
               <div className="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:bg-gray-100 transition-colors duration-200">
@@ -243,7 +268,7 @@ export default function LoginPage() {
                   ¿Problemas para ingresar? Contacta a{" "}
                   <a
                     href="mailto:registroycontrol@itp.edu.co"
-                    className="text-blue-600 hover:text-blue-700 transition-colors duration-200 inline-block hover:scale-105 transform duration-900"
+                    className="text-blue-600 hover:text-blue-700 transition-colors duration-200 inline-block hover:scale-105 transform duration-200"
                   >
                     registroycontrol@itp.edu.co
                   </a>

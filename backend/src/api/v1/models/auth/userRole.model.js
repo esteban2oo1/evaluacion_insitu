@@ -1,4 +1,4 @@
-const { getPool } = require('../../../../db');
+const { getPool, getSecurityPool } = require('../../../../db');
 
 const UserRoleModel = {
   getUserRoles: async (userId) => {
@@ -15,12 +15,51 @@ const UserRoleModel = {
 
   getAllUserRoles: async () => {
     const pool = await getPool();
-    const [rows] = await pool.query(
+    const securityPool = await getSecurityPool();
+
+    // Paso 1: Traer roles con user_id
+    const [roleRows] = await pool.query(
       `SELECT ur.id, ur.user_id, r.NOMBRE_ROL as role_name, ur.rol_id
-       FROM users_roles ur
-       JOIN ROLES r ON ur.rol_id = r.ID`
+      FROM users_roles ur
+      JOIN ROLES r ON ur.rol_id = r.ID`
     );
-    return rows;
+
+    // Extraer user_ids únicos
+    const userIds = [...new Set(roleRows.map(row => row.user_id))];
+
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    // Paso 2: Traer usernames desde datalogin
+    const [userRows] = await securityPool.query(
+      `SELECT user_id, user_name FROM datalogin WHERE user_id IN (?)`,
+      [userIds]
+    );
+
+    // Crear un diccionario para búsqueda rápida
+    const userMap = {};
+    userRows.forEach(user => {
+      userMap[user.user_id] = user.user_name;
+    });
+
+    // Paso 3: Mezclar los datos
+    const result = roleRows.map(row => ({
+      ...row,
+      user_name: userMap[row.user_id] || null,
+    }));
+
+    return result;
+  },
+
+
+  searchUser: async (username) => {
+    const pool = await getSecurityPool();
+    const [rows] = await pool.query(
+        'SELECT user_id, user_name, user_username, user_email, role_name FROM datalogin WHERE user_username = ?',
+        [username]
+    );
+    return rows[0];
   },
 
   assignRole: async (userId, roleId) => {

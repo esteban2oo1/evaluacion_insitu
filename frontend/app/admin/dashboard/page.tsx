@@ -10,6 +10,7 @@ import { ApiResponse, DashboardStatsResponse, DashboardAspectosResponse, Dashboa
 import { configuracionEvaluacionService, tiposEvaluacionesService } from "@/lib/services/evaluacionInsitu"
 import { TipoEvaluacion, ConfiguracionEvaluacion } from "@/lib/types/evaluacionInsitu"
 import Filtros from "@/app/admin/components/filters"
+import api from "@/lib/api"
 
 interface DashboardData {
   stats: DashboardStatsResponse
@@ -36,6 +37,54 @@ function extractData<T extends object>(response: T | ApiResponse<T>): T {
 
 export default function AdminDashboard() {
   const { toast } = useToast()
+  const [loadingBackup, setLoadingBackup] = useState(false)
+
+  const handleBackup = async () => {
+    try {
+      setLoadingBackup(true);
+      
+      const response = await api.get('/backup', {
+        responseType: 'blob',
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const contentDisposition = response.headers['content-disposition'];
+      let fileName = 'backup.sql';
+      
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (fileNameMatch && fileNameMatch[1]) {
+          fileName = fileNameMatch[1];
+        }
+      }
+      
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Backup generado",
+        description: "El archivo de backup se ha descargado correctamente",
+        variant: "default",
+      });
+      
+    } catch (error) {
+      console.error('Error al generar el backup:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo generar el backup",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingBackup(false);
+    }
+  };
 
   // Estados para filtros
   const [filtros, setFiltros] = useState<FiltrosState>({
@@ -168,15 +217,16 @@ export default function AdminDashboard() {
       <header className="bg-white p-4 shadow-sm flex justify-between items-center">
         <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="border-gray-900 text-gray-900 hover:bg-gray-100">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="border-gray-900 text-gray-900 hover:bg-gray-100"
+            onClick={handleBackup}
+            disabled={loadingBackup}
+          >
             <Download className="h-4 w-4 mr-2" />
-            Backup
+            {loadingBackup ? "Generando backup..." : "Backup"}
           </Button>
-          <Link href="/">
-            <Button variant="outline" size="sm" className="border-gray-900 text-gray-900 hover:bg-gray-100">
-              Cerrar Sesión
-            </Button>
-          </Link>
         </div>
       </header>
 

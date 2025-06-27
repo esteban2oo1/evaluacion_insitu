@@ -47,6 +47,106 @@
  *         error:
  *           type: string
  *           description: Detalles del error
+ *     UserSearchResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           description: Indica si la operación fue exitosa
+ *         message:
+ *           type: string
+ *           description: Mensaje de respuesta
+ *         data:
+ *           type: object
+ *           properties:
+ *             user_id:
+ *               type: integer
+ *               description: ID del usuario
+ *             user_name:
+ *               type: string
+ *               description: Nombre completo del usuario
+ *             user_username:
+ *               type: string
+ *               description: Nombre de usuario
+ *             user_email:
+ *               type: string
+ *               description: Email del usuario
+ *             role_name:
+ *               type: string
+ *               description: Nombre del rol asignado
+ *     UserSearchError:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           description: Indica si la operación fue exitosa
+ *         message:
+ *           type: string
+ *           description: Mensaje de error
+ *         error:
+ *           type: string
+ *           description: Detalles del error
+ *           nullable: true
+ */
+
+/**
+ * @swagger
+ * /user-roles/search/{username}:
+ *   get:
+ *     summary: Buscar usuario por nombre de usuario
+ *     tags: [User Roles]
+ *     parameters:
+ *       - in: path
+ *         name: username
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Nombre de usuario a buscar
+ *         example: "john_doe"
+ *     responses:
+ *       200:
+ *         description: Usuario encontrado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserSearchResponse'
+ *             example:
+ *               success: true
+ *               message: "Data fetched successfully"
+ *               data:
+ *                 user_id: 1
+ *                 user_name: "John Doe"
+ *                 user_username: "john_doe"
+ *                 user_email: "john.doe@example.com"
+ *                 role_name: "Administrator"
+ *       400:
+ *         description: Parámetro username requerido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserSearchError'
+ *             example:
+ *               success: false
+ *               message: "Username is required"
+ *       404:
+ *         description: Usuario no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserSearchError'
+ *             example:
+ *               success: false
+ *               message: "User not found"
+ *       500:
+ *         description: Error del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserSearchError'
+ *             example:
+ *               success: false
+ *               message: "Internal server error"
+ *               error: "Database connection failed"
  */
 
 /**
@@ -225,4 +325,4 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/UserRoleError'
- */ 
+ */

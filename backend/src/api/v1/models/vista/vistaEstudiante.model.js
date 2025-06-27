@@ -1,11 +1,11 @@
 // src/api/v1/models/vistaEstudiante.model.js
-const { getPool } = require('../../../../db');
+const { getRemotePool } = require('../../../../db');
 
 const VistaEstudiante = {
   getAllEstudiantes: async () => {
     try {
-      const pool = getPool();
-      const [rows] = await pool.query('SELECT * FROM VISTA_ESTUDIANTE');
+      const pool = getRemotePool();
+      const [rows] = await pool.query('SELECT * FROM vista_estudiante');
       return rows;
     } catch (error) {
       throw error;
@@ -14,7 +14,7 @@ const VistaEstudiante = {
 
   getEstudianteById: async (documentoEstudiante) => {
     try {
-      const pool = getPool();
+      const pool = getRemotePool();
       const [rows] = await pool.query(`
         SELECT 
           SEMESTRE_MATRICULA,
@@ -42,7 +42,7 @@ const VistaEstudiante = {
           ESTADO_MATRICULA,
           ESTADO_ACADEMICO,
           PROMEDIO_ACUMULADO        
-        FROM VISTA_ESTUDIANTE
+        FROM vista_estudiante');
         WHERE DOCUMENTO_ESTUDIANTE = ?;
       `, [documentoEstudiante]);
   
@@ -54,7 +54,7 @@ const VistaEstudiante = {
 
   getEstudianteByDocumento: async (documentoEstudiante) => {
     try {
-      const pool = getPool();
+      const pool = getRemotePool();
       const query = `
       SELECT
         SEMESTRE,

@@ -1,13 +1,13 @@
-const { getPool } = require('../../../../db');
+const { getSecurityPool } = require('../../../../db');
 
 const UserAuthModel = {
   getUserByUsername: async (username) => {
     try {
-      const pool = await getPool();
+      const pool = await getSecurityPool();
       const [rows] = await pool.query(
         `SELECT user_id, user_name, user_username, user_password, user_email, 
                 user_idrole, user_statusid, role_name
-         FROM DATALOGIN 
+         FROM datalogin 
          WHERE user_username = ?`,
         [username]
       );
@@ -20,11 +20,11 @@ const UserAuthModel = {
 
   getUserById: async (userId) => {
     try {
-      const pool = await getPool();
+      const pool = await getSecurityPool();
       const [rows] = await pool.query(
         `SELECT user_id, user_name, user_username, user_email, 
                 user_idrole, user_statusid, role_name
-         FROM DATALOGIN 
+         FROM datalogin 
          WHERE user_id = ?`,
         [userId]
       );

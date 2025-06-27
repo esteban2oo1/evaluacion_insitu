@@ -5,6 +5,7 @@ const { verifyToken, checkRole } = require('../../middlewares/userAuth.middlewar
 const {
   getUserRoles,
   getAllUserRoles,
+  searchUser,
   assignRole,
   updateRole,
   removeRole
@@ -12,6 +13,8 @@ const {
 
 // Aplicar verificación de token a todas las rutas
 router.use(verifyToken);
+
+router.get('/search/:username', searchUser);
 
 // Obtener todos los roles asignados (solo Admin)
 router.get('/', checkRole(['Admin']), getAllUserRoles);

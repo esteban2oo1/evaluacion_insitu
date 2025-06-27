@@ -1,4 +1,4 @@
-const { getPool } = require('../../../../db');
+const { getPool, getRemotePool } = require('../../../../db');
 
 const Evaluaciones = {
 
@@ -87,60 +87,129 @@ const Evaluaciones = {
 
   getEvaluacionesByEstudianteByConfiguracion: async (documentoEstudiante, configuracionId) => {
     try {
-      const pool = getPool();
-      const query = `
-        WITH SEMESTRE_PREDOMINANTE AS (
-            SELECT 
-                COD_ASIGNATURA,
-                ID_DOCENTE,
-                SEMESTRE AS SEMESTRE_PREDOMINANTE,
-                ROW_NUMBER() OVER (PARTITION BY COD_ASIGNATURA, ID_DOCENTE ORDER BY COUNT(*) DESC) AS rn
-            FROM vista_academica_insitus
-            GROUP BY COD_ASIGNATURA, ID_DOCENTE, SEMESTRE
-        ),
-        PROGRAMA_PREDOMINANTE AS (
-            SELECT 
-                COD_ASIGNATURA,
-                ID_DOCENTE,
-                NOM_PROGRAMA AS PROGRAMA_PREDOMINANTE,
-                ROW_NUMBER() OVER (PARTITION BY COD_ASIGNATURA, ID_DOCENTE ORDER BY COUNT(*) DESC) AS rn
-            FROM vista_academica_insitus
-            GROUP BY COD_ASIGNATURA, ID_DOCENTE, NOM_PROGRAMA
-        )
-    
+      const pool = getPool(); // Para EVALUACIONES y evaluacion_detalle
+      const remotePool = getRemotePool(); // Para vista_academica_insitus
+      
+      // Step 1: Get the vista_academica_insitus data (remote pool)
+      const queryVistaAcademica = `
+        SELECT 
+            COD_ASIGNATURA, 
+            ID_DOCENTE, 
+            SEMESTRE, 
+            NOM_PROGRAMA,
+            DOCENTE,
+            ASIGNATURA
+        FROM vista_academica_insitus
+        WHERE ID_ESTUDIANTE = ?
+      `;
+      const [vistaAcademicaRows] = await remotePool.query(queryVistaAcademica, [documentoEstudiante]);
+      
+      // Step 2: Process the result and query the main database (pool)
+      if (vistaAcademicaRows.length === 0) {
+        return [];
+      }
+      
+      const codAsignaturas = vistaAcademicaRows.map(row => row.COD_ASIGNATURA);
+      const docentes = vistaAcademicaRows.map(row => row.ID_DOCENTE);
+      
+      // Create a map for quick lookup of vista_academica_insitus data
+      const vistaAcademicaMap = new Map();
+      vistaAcademicaRows.forEach(row => {
+        const key = `${row.ID_DOCENTE}_${row.COD_ASIGNATURA}`;
+        if (!vistaAcademicaMap.has(key)) {
+          vistaAcademicaMap.set(key, {
+            semestres: [],
+            programas: [],
+            docente: row.DOCENTE,
+            asignatura: row.ASIGNATURA
+          });
+        }
+        vistaAcademicaMap.get(key).semestres.push(row.SEMESTRE);
+        vistaAcademicaMap.get(key).programas.push(row.NOM_PROGRAMA);
+      });
+      
+      // Calculate predominant semester and program for each combination
+      const predominantData = new Map();
+      vistaAcademicaMap.forEach((data, key) => {
+        // Get most frequent semester
+        const semestreCount = {};
+        data.semestres.forEach(sem => {
+          semestreCount[sem] = (semestreCount[sem] || 0) + 1;
+        });
+        const semestrePredominante = Object.keys(semestreCount).reduce((a, b) => 
+          semestreCount[a] > semestreCount[b] ? a : b
+        );
+        
+        // Get most frequent program
+        const programaCount = {};
+        data.programas.forEach(prog => {
+          programaCount[prog] = (programaCount[prog] || 0) + 1;
+        });
+        const programaPredominante = Object.keys(programaCount).reduce((a, b) => 
+          programaCount[a] > programaCount[b] ? a : b
+        );
+        
+        predominantData.set(key, {
+          semestrePredominante,
+          programaPredominante,
+          docente: data.docente,
+          asignatura: data.asignatura
+        });
+      });
+      
+      // Step 3: Query evaluaciones from the main pool
+      const queryEvaluaciones = `
         SELECT DISTINCT
             e.ID,
             e.DOCUMENTO_ESTUDIANTE,
             e.DOCUMENTO_DOCENTE,
-            vai.DOCENTE,
-            vai.ASIGNATURA,
             e.CODIGO_MATERIA,
             e.ID_CONFIGURACION,
-            sp.SEMESTRE_PREDOMINANTE,
-            pp.PROGRAMA_PREDOMINANTE,
             CASE 
                 WHEN ed.ID IS NOT NULL THEN 1 
                 ELSE 0 
             END AS ACTIVO
         FROM EVALUACIONES e
-        LEFT JOIN vista_academica_insitus vai 
-            ON e.DOCUMENTO_DOCENTE = vai.ID_DOCENTE AND e.CODIGO_MATERIA = vai.COD_ASIGNATURA
-        LEFT JOIN SEMESTRE_PREDOMINANTE sp 
-            ON e.CODIGO_MATERIA = sp.COD_ASIGNATURA AND e.DOCUMENTO_DOCENTE = sp.ID_DOCENTE AND sp.rn = 1
-        LEFT JOIN PROGRAMA_PREDOMINANTE pp 
-            ON e.CODIGO_MATERIA = pp.COD_ASIGNATURA AND e.DOCUMENTO_DOCENTE = pp.ID_DOCENTE AND pp.rn = 1
         LEFT JOIN evaluacion_detalle ed 
             ON e.ID = ed.EVALUACION_ID
-        WHERE e.DOCUMENTO_ESTUDIANTE = ? AND e.ID_CONFIGURACION = ?;
+        WHERE e.DOCUMENTO_ESTUDIANTE = ? 
+          AND e.ID_CONFIGURACION = ? 
+          AND e.CODIGO_MATERIA IN (${codAsignaturas.map(() => '?').join(',')}) 
+          AND e.DOCUMENTO_DOCENTE IN (${docentes.map(() => '?').join(',')})
       `;
       
-      const [rows] = await pool.query(query, [documentoEstudiante, configuracionId]);
-      return rows;
+      const [evaluacionesRows] = await pool.query(queryEvaluaciones, [
+        documentoEstudiante, 
+        configuracionId, 
+        ...codAsignaturas, 
+        ...docentes
+      ]);
+      
+      // Step 4: Combine the results
+      const finalResults = evaluacionesRows.map(evaluacion => {
+        const key = `${evaluacion.DOCUMENTO_DOCENTE}_${evaluacion.CODIGO_MATERIA}`;
+        const academicData = predominantData.get(key) || {};
+        
+        return {
+          ID: evaluacion.ID,
+          DOCUMENTO_ESTUDIANTE: evaluacion.DOCUMENTO_ESTUDIANTE,
+          DOCUMENTO_DOCENTE: evaluacion.DOCUMENTO_DOCENTE,
+          DOCENTE: academicData.docente || null,
+          ASIGNATURA: academicData.asignatura || null,
+          CODIGO_MATERIA: evaluacion.CODIGO_MATERIA,
+          ID_CONFIGURACION: evaluacion.ID_CONFIGURACION,
+          SEMESTRE_PREDOMINANTE: academicData.semestrePredominante || null,
+          PROGRAMA_PREDOMINANTE: academicData.programaPredominante || null,
+          ACTIVO: evaluacion.ACTIVO
+        };
+      });
+      
+      return finalResults;
+      
     } catch (error) {
       throw error;
     }
   },
-
   
   getEvaluacionesByDocente: async (documentoDocente) => {
     try {
